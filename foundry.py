@@ -91,18 +91,24 @@ def narrate(insight: Insight) -> dict:
 
 
 def fallback(insight: Insight, reason: str) -> dict:
+    facts = insight.facts
     if insight.kind == "pressure_surge":
-        overlay = "Red FC's high press is producing more recoveries."
-        casual = "Red FC is winning the ball near Blue FC's goal more often than before."
-        analyst = ("Red FC recorded three high recoveries and seven attacking-third pressures "
-                   "from 25:00–29:59, versus zero high recoveries and one pressure in the prior window. "
-                   "Blue FC also had four failed exits; these events suggest a more disruptive high press.")
+        overlay = "Red's press is disrupting Blue's build-up."
+        casual = "Red is pressing near Blue's goal and winning the ball higher up the pitch."
+        analyst = (f"Red recorded {facts['red_high_recoveries']} high recoveries and "
+                   f"{facts['red_attacking_third_pressures']} attacking-third pressures "
+                   f"from {facts['window']}, versus {facts['previous_high_recoveries']} "
+                   f"high recoveries and {facts['previous_pressures']} pressure before. "
+                   f"Blue had {facts['blue_failed_defensive_exits']} failed exits. "
+                   "This pattern suggests a more disruptive press.")
     else:
         overlay = "Blue FC is finding a route through the press."
         casual = "Blue FC is moving the ball forward again after a difficult spell."
-        analyst = ("Blue FC completed nine progressive passes from 30:00–34:59 while Red FC "
-                   "recorded no high recoveries, down from three in the previous window. "
-                   "This suggests Blue FC may have found an effective way past the press.")
+        analyst = (f"Blue completed {facts['blue_completed_progressive_passes']} progressive "
+                   f"passes from {facts['window']} while Red recorded "
+                   f"{facts['red_high_recoveries']} high recoveries, down from "
+                   f"{facts['previous_high_recoveries']} in the previous window. "
+                   "The sequence suggests Blue may have found a route through the press.")
     return {"source": "Local fallback · Foundry unavailable", "overlay": overlay,
             "casual": casual, "analyst": analyst,
             "evidence_ids": list(insight.evidence_ids), "reason": reason}
@@ -110,10 +116,14 @@ def fallback(insight: Insight, reason: str) -> dict:
 
 def recap(insights: list[dict]) -> dict:
     # A fixed recap is available even when cloud inference is unavailable.
-    local = ("Red FC's pressure rose after 25:00, with three high recoveries and seven "
-             "attacking-third pressures in five minutes. Blue FC then completed nine "
-             "progressive passes while Red FC's high recoveries dropped to zero. "
-             "The synthetic segment shows a press and a possible response to it.")
+    press = insights[0].facts if insights else {}
+    response = insights[1].facts if len(insights) > 1 else {}
+    local = (f"Red FC's pressure rose in {press.get('window', 'the middle passage')}, "
+             f"with {press.get('red_high_recoveries', 0)} high recoveries and "
+             f"{press.get('red_attacking_third_pressures', 0)} attacking-third pressures. "
+             f"Blue FC then completed {response.get('blue_completed_progressive_passes', 0)} "
+             "progressive passes while Red's high recoveries fell to zero. "
+             "The synthetic sequence suggests a press and a possible response.")
     if not configured():
         return {"text": local, "source": "Local fallback · Foundry unavailable"}
     try:

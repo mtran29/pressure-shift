@@ -64,14 +64,14 @@
   </header>
   <div class="layout">
     <section class="card card-pad" aria-label="Synthetic match replay">
-      <div class="matchhead"><div class="teams"><span class="red">Red FC</span> <span style="color:#718f91">vs</span> <span class="blue">Blue FC</span></div><div class="clock" id="clock">20:00</div></div>
+      <div class="matchhead"><div class="teams"><span class="red">Red FC</span> <span style="color:#718f91">vs</span> <span class="blue">Blue FC</span></div><div class="clock" id="clock">60:00</div></div>
       <div class="pitch-wrap"><canvas id="pitch" width="960" height="540" aria-label="Animated football pitch"></canvas><div class="overlay hidden" id="overlay"><div class="overline">Live insight · <span id="overlay-time"></span></div><strong id="overlay-text"></strong></div></div>
       <div class="controls"><button class="primary" id="play">Play</button><button class="secondary" id="reset">Reset</button><input id="seek" type="range" min="0" max="100" value="0" aria-label="Replay position"></div>
-      <div class="caption">Blue FC attacks right. Replay speed: one event every 0.6 seconds. Overlays appear when a measured trend changes.</div>
+      <div class="caption">Blue attacks right. Passes form connected possessions; turnovers and restarts start new ones. Replay speed: one tagged event every 0.6 seconds.</div>
       <div class="card-pad" style="padding:16px 0 0"><h2 class="section-title">Event feed</h2><div class="feed" id="feed"><div class="caption">Press Play to begin the fictional match segment.</div></div></div>
     </section>
     <div class="right">
-      <section class="card card-pad"><h2 class="section-title">Insight desk</h2><h3 class="story-title" id="story-title">Waiting for a meaningful shift</h3><p class="story" id="story">The engine compares five-minute windows. It only raises an insight when the event evidence crosses a threshold.</p><div class="switch"><button id="casual" class="active">Casual fan</button><button id="analyst">Analyst</button></div><div class="source" id="source">Source: Python event engine</div></section>
+      <section class="card card-pad"><h2 class="section-title">Insight desk</h2><h3 class="story-title" id="story-title">Waiting for a meaningful shift</h3><p class="story" id="story">The engine compares adjacent 100-second windows. It raises an insight when the event evidence crosses a threshold.</p><div class="switch"><button id="casual" class="active">Casual fan</button><button id="analyst">Analyst</button></div><div class="source" id="source">Source: Python event engine</div></section>
       <section class="card card-pad"><h2 class="section-title">Why this appeared</h2><div class="evidence"><div class="stat"><b id="stat1">—</b><span id="label1">High recoveries</span></div><div class="stat"><b id="stat2">—</b><span id="label2">Pressures</span></div><div class="stat"><b id="stat3">—</b><span id="label3">Failed exits</span></div></div><div class="ids" id="ids">Supporting event IDs will appear here.</div></section>
     </div>
   </div>
@@ -92,24 +92,36 @@ function pitch() {
   c.beginPath(); c.arc(w/2,h/2,73,0,Math.PI*2); c.stroke();
   c.strokeRect(26,h/2-110,145,220); c.strokeRect(w-171,h/2-110,145,220);
   c.strokeRect(26,h/2-49,52,98); c.strokeRect(w-78,h/2-49,52,98);
-  const recent=events.slice(Math.max(0,cursor-13),cursor+1);
+  const current=events[cursor], possession=current?.possession_id;
+  const recent=events.slice(0,cursor+1).filter(e=>e.possession_id===possession && e.type!=='possession_change');
   for(const e of recent){
     let x=26+(w-52)*e.x/100, y=25+(h-50)*e.y/100;
-    if(e.end_x!==null && e.end_x!==undefined){
+    if(e.type==='pass' && e.end_x!==null && e.end_x!==undefined){
       let x2=26+(w-52)*e.end_x/100, y2=25+(h-50)*e.end_y/100;
-      c.strokeStyle=e.team==='Red FC'?'#ff735f75':'#6ac9ff75'; c.lineWidth=2.5;
+      c.strokeStyle=e.outcome==='incomplete'?'#ffffff80':e.team==='Red FC'?'#ff735fbd':'#6ac9ffbd'; c.lineWidth=3;
+      c.setLineDash(e.outcome==='incomplete'?[8,6]:[]);
       c.beginPath();c.moveTo(x,y);c.lineTo(x2,y2);c.stroke();
+      c.setLineDash([]);
+      c.beginPath();c.arc(x2,y2,4,0,Math.PI*2);c.fillStyle=e.team==='Red FC'?'#ff735f':'#6ac9ff';c.fill();
     }
-    c.beginPath(); c.arc(x,y,e===events[cursor]?10:6,0,Math.PI*2);
-    c.fillStyle=e.team==='Red FC'?'#ff735f':'#6ac9ff';c.fill();
-    if(e===events[cursor]){c.strokeStyle='#fff';c.lineWidth=2;c.stroke();}
+    if(e.type==='pressure' || e.type==='tackle'){c.strokeStyle='#ff735faa';c.lineWidth=2;c.beginPath();c.arc(x,y,13,0,Math.PI*2);c.stroke();}
+    else if(e.type!=='pass'){c.beginPath();c.arc(x,y,5,0,Math.PI*2);c.fillStyle=e.team==='Red FC'?'#ff735f':'#6ac9ff';c.fill();}
+  }
+  if(current){
+    const ball=recent.filter(e=>e.type==='pass'&&e.outcome==='complete').at(-1);
+    const bx=current.type==='pass'&&current.outcome==='complete'?current.end_x:
+      current.type==='pressure'||current.type==='tackle'?(ball?ball.end_x:current.x):current.x;
+    const by=current.type==='pass'&&current.outcome==='complete'?current.end_y:
+      current.type==='pressure'||current.type==='tackle'?(ball?ball.end_y:current.y):current.y;
+    c.beginPath();c.arc(26+(w-52)*bx/100,25+(h-50)*by/100,9,0,Math.PI*2);
+    c.fillStyle='#fff';c.fill();c.strokeStyle='#0b2825';c.lineWidth=3;c.stroke();
   }
   c.fillStyle='#fff9';c.font='bold 17px sans-serif';c.fillText('RED ATTACKS ←',42,51);c.fillText('BLUE ATTACKS →',w-239,51);
 }
 function setText(id,value){byId(id).textContent=value;}
 function story(){if(!latest)return;setText('story',latest[mode]);setText('story-title',latest.overlay);}
 function setMode(value){mode=value;byId('casual').classList.toggle('active',mode==='casual');byId('analyst').classList.toggle('active',mode==='analyst');story();}
-function eventLine(e){const div=document.createElement('div');div.className='feed-item';const a=document.createElement('span');a.textContent=e.minute+' · '+e.id;const b=document.createElement('span');b.textContent=e.team+' · '+e.type+(e.outcome?' · '+e.outcome:'');div.append(a,b);return div;}
+function eventLine(e){const div=document.createElement('div');div.className='feed-item';const a=document.createElement('span');a.textContent=e.minute+' · '+e.id;const b=document.createElement('span');b.textContent=e.team+' · '+e.player+(e.type==='pass'?' → '+e.recipient:' · '+e.type)+(e.outcome==='incomplete'?' (missed)':'')+' · '+e.possession_id;div.append(a,b);return div;}
 function showEvidence(insight, narrative){
   const f=insight.facts;
   if(insight.kind==='pressure_surge'){
@@ -156,7 +168,7 @@ function step(){
 }
 function pause(){if(timer){clearInterval(timer);timer=null;}setText('play','Play');}
 function play(){if(timer){pause();return;}if(cursor>=events.length-1)reset();timer=setInterval(step,600);setText('play','Pause');step();}
-function reset(){pause();generation++;cursor=-1;latest=null;activeInsight=null;byId('overlay').classList.add('hidden');byId('seek').value=0;setText('clock','20:00');setText('story-title','Waiting for a meaningful shift');setText('story','The engine compares five-minute windows. It only raises an insight when the event evidence crosses a threshold.');setText('source','Source: Python event engine');setText('stat1','—');setText('stat2','—');setText('stat3','—');setText('ids','Supporting event IDs will appear here.');setText('recap','The recap is generated when the replay finishes.');setText('recap-source','');byId('feed').textContent='';pitch();}
+function reset(){pause();generation++;cursor=-1;latest=null;activeInsight=null;byId('overlay').classList.add('hidden');byId('seek').value=0;setText('clock','60:00');setText('story-title','Waiting for a meaningful shift');setText('story','The engine compares adjacent 100-second windows. It raises an insight when the event evidence crosses a threshold.');setText('source','Source: Python event engine');setText('stat1','—');setText('stat2','—');setText('stat3','—');setText('ids','Supporting event IDs will appear here.');setText('recap','The recap is generated when the replay finishes.');setText('recap-source','');byId('feed').textContent='';pitch();}
 byId('play').onclick=play;byId('reset').onclick=reset;
 byId('casual').onclick=()=>setMode('casual');byId('analyst').onclick=()=>setMode('analyst');
 byId('seek').oninput=e=>{const target=Math.round(Number(e.target.value)*(events.length-1)/100);reset();while(cursor<target)step();};

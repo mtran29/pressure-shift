@@ -27,11 +27,11 @@ The backend calls `POST {endpoint}/openai/v1/chat/completions` using the deploym
 
 ## How it works
 
-1. `engine.py` generates a deterministic, fictional 16-minute scenario from a seed.
-2. Rolling five-minute windows are compared for high recoveries, attacking-third pressures, failed exits, and successful progressive passes.
+1. `engine.py` generates a deterministic, fictional five-minute passage with continuous possessions. Consecutive passes share endpoints; shots, recoveries, and goal kicks explain changes of possession.
+2. Adjacent 100-second windows are compared for high recoveries, attacking-third pressures, failed exits, and successful progressive passes. Blue attacks right, so Red's high press occurs at x ≤ 33 in Blue's defensive third.
 3. Two triggered insights cover a press surge and the opponent's response.
 4. `app.py` asks Foundry to express each evidence packet as an overlay plus casual and analyst explanations.
-5. The browser renders a timed pitch replay, evidence panel, audience modes, and a full-time recap.
+5. The browser renders a timed pitch replay, evidence panel, audience modes, and a segment recap.
 
 All clubs, players, events, and coordinates are fictional. This project uses no Premier League match data or match footage.
 
@@ -42,4 +42,3 @@ python3 -m unittest discover -s tests -v
 ```
 
 For judging, the app can be run locally from this repository. An Azure hosted instance can use the same environment variables. The demo video should show the live app and briefly show the Foundry model deployment and evaluation.
-

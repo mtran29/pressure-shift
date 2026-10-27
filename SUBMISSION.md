@@ -9,7 +9,7 @@ Pressure Shift turns a synthetic football event stream into timely, explainable 
 ## What to show in the under-two-minute video
 
 1. **0–15s:** Explain the problem: stats alone do not explain a tactical shift. Show the fictional pitch replay.
-2. **15–40s:** Red's press rises. Point to the timed overlay and evidence panel: three high recoveries, seven pressures, four failed exits.
+2. **15–40s:** Red's press rises. Point to the timed overlay and evidence panel: two high recoveries, six pressures, two failed exits.
 3. **40–60s:** Switch Casual Fan ↔ Analyst to show different wording from the same verified fact packet.
 4. **60–80s:** Blue starts passing through. Show the second overlay and that the earlier press story updates.
 5. **80–100s:** Show the recap and briefly the Foundry deployment / model monitoring screen.
@@ -33,4 +33,3 @@ The app can be run from the public repository with `python3 app.py` and no depen
 - [ ] Pitch includes Microsoft Foundry and the problem solved
 - [ ] Confirm all data and visuals are fictional
 - [ ] Verify submitted links in a private browser window
-

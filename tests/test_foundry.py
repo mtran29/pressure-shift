@@ -23,7 +23,7 @@ class FoundryTests(unittest.TestCase):
         request.return_value = {"choices": [{"message": {"content": json.dumps({
             "overlay": "Red's high recoveries have risen.",
             "casual": "Red is winning the ball near Blue's goal more often.",
-            "analyst": "Three high recoveries followed none in the preceding window.",
+            "analyst": "Two high recoveries followed none in the preceding window.",
             "evidence_ids": [INSIGHTS[0].evidence_ids[0]]
         })}}], "usage": {"total_tokens": 100}}
         result = narrate(INSIGHTS[0])

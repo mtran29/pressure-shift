@@ -1,9 +1,12 @@
-"""Synthetic event stream and transparent pressure-shift detection."""
+"""Fictional, possession-linked event replay and transparent pressure detection.
+
+Coordinates are percentages of pitch length and width. Blue attacks right, so
+Red's attacking third is Blue's defensive third (x <= 33).
+"""
 
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from random import Random
 
 
 @dataclass(frozen=True)
@@ -20,6 +23,8 @@ class Event:
     end_y: int | None = None
     outcome: str | None = None
     phase: str = ""
+    recipient: str | None = None
+    possession_id: str | None = None
 
     def public(self) -> dict:
         return asdict(self)
@@ -46,58 +51,130 @@ def _stamp(second: int) -> str:
     return f"{second // 60:02d}:{second % 60:02d}"
 
 
-def generate_match(seed: int = 7) -> list[Event]:
-    """Create a football-realistic but wholly fictional match segment.
+def generate_match() -> list[Event]:
+    """Script a five-minute passage with connected passes and explicit restarts.
 
-    Coordinates run 0..100 left to right. Blue attacks right; Red attacks left.
-    A high Red recovery therefore occurs at x >= 67.
+    Times are match-clock seconds. Intervening seconds are ordinary movement
+    without a tagged event; this is event data, not video tracking.
     """
-    rng = Random(seed)
     events: list[Event] = []
 
     def add(second: int, team: str, player: str, kind: str, x: int, y: int,
             end_x: int | None = None, end_y: int | None = None,
-            outcome: str | None = None, phase: str = "") -> None:
-        events.append(Event(f"E{len(events) + 1:03d}", second, _stamp(second), team,
-                            player, kind, x, y, end_x, end_y, outcome, phase))
+            outcome: str | None = None, possession_id: str | None = None,
+            recipient: str | None = None) -> None:
+        phase = "baseline" if second < 3700 else "press" if second < 3800 else "response"
+        events.append(Event(f"E{len(events)+1:03d}", second, _stamp(second), team,
+                            player, kind, x, y, end_x, end_y, outcome, phase,
+                            recipient, possession_id))
 
-    # 20:00–24:59: Blue progresses without much high pressure.
-    for i in range(11):
-        t = 1205 + i * 25
-        x = 15 + (i % 3) * 12
-        y = 25 + (i % 4) * 15
-        add(t, BLUE, ["B. Vale", "M. Chen", "A. Noor"][i % 3], "pass", x, y,
-            min(x + 18, 70), min(y + rng.choice([-7, 0, 7]), 90), "complete", "baseline")
-    add(1450, RED, "R. Silva", "pressure", 74, 44, phase="baseline")
+    def chain(team: str, possession_id: str, steps: list[tuple]) -> None:
+        """Each step is (second, passer, receiver, start, end, outcome)."""
+        for second, passer, receiver, start, end, outcome in steps:
+            add(second, team, passer, "pass", *start, *end, outcome,
+                possession_id, receiver)
 
-    # 25:00–29:59: Red's press creates repeated disruption in Blue's own third.
-    for i in range(7):
-        t = 1510 + i * 37
-        y = 18 + (i * 11) % 63
-        add(t, RED, ["R. Silva", "T. Okafor", "J. Kim"][i % 3], "pressure",
-            72 + (i % 3) * 6, y, phase="press")
-        if i in (1, 3, 5, 6):
-            add(t + 5, BLUE, ["B. Vale", "M. Chen"][i % 2], "pass", 80, y,
-                62, y + 4, "incomplete", "press")
-        if i in (2, 4, 6):
-            add(t + 9, RED, ["R. Silva", "T. Okafor", "J. Kim"][i % 3],
-                "recovery", 76, y + 2, outcome="won", phase="press")
-            add(t + 10, RED, ["R. Silva", "T. Okafor", "J. Kim"][i % 3],
-                "possession_change", 76, y + 2, outcome="won", phase="press")
-        if i in (3, 5):
-            add(t + 3, RED, "J. Kim", "tackle", 73, y, outcome="contested", phase="press")
-    add(1788, RED, "R. Silva", "pass", 71, 50, 61, 46, "complete", "press")
+    # Blue build-up: one continuous possession, then a shot and goalkeeper restart.
+    add(3600, BLUE, "B. Vale", "goal_kick", 7, 50, outcome="taken", possession_id="B1")
+    chain(BLUE, "B1", [
+        (3603, "B. Vale", "M. Chen", (7, 50), (17, 43), "complete"),
+        (3607, "M. Chen", "A. Noor", (17, 43), (25, 30), "complete"),
+        (3612, "A. Noor", "M. Chen", (25, 30), (33, 42), "complete"),
+        (3616, "M. Chen", "S. Costa", (33, 42), (45, 30), "complete"),
+        (3621, "S. Costa", "A. Noor", (45, 30), (56, 43), "complete"),
+        (3626, "A. Noor", "D. Park", (56, 43), (66, 31), "complete"),
+        (3631, "D. Park", "S. Costa", (66, 31), (76, 43), "complete"),
+    ])
+    add(3609, RED, "R. Silva", "pressure", 25, 30, possession_id="B1")
+    add(3637, BLUE, "S. Costa", "shot", 76, 43, 100, 47, "saved", "B1")
+    add(3638, RED, "L. Reed", "recovery", 93, 50, outcome="won", possession_id="R1")
+    add(3638, RED, "L. Reed", "possession_change", 93, 50, outcome="won", possession_id="R1")
+    chain(RED, "R1", [
+        (3646, "L. Reed", "J. Kim", (93, 50), (81, 58), "complete"),
+        (3652, "J. Kim", "T. Okafor", (81, 58), (69, 70), "complete"),
+        (3658, "T. Okafor", "R. Silva", (69, 70), (59, 56), "complete"),
+        (3664, "R. Silva", "J. Kim", (59, 56), (47, 68), "complete"),
+        (3670, "J. Kim", "T. Okafor", (47, 68), (36, 53), "complete"),
+        (3675, "T. Okafor", "R. Silva", (36, 53), (27, 47), "complete"),
+    ])
+    add(3681, RED, "R. Silva", "shot", 27, 47, 0, 50, "saved", "R1")
+    add(3682, BLUE, "B. Vale", "recovery", 7, 50, outcome="won", possession_id="B2")
+    add(3682, BLUE, "B. Vale", "possession_change", 7, 50, outcome="won", possession_id="B2")
+    chain(BLUE, "B2", [
+        (3686, "B. Vale", "M. Chen", (7, 50), (17, 43), "complete"),
+        (3691, "M. Chen", "A. Noor", (17, 43), (26, 34), "complete"),
+        (3696, "A. Noor", "M. Chen", (26, 34), (31, 45), "complete"),
+        (3705, "M. Chen", "B. Vale", (31, 45), (22, 50), "complete"),
+        (3709, "B. Vale", "A. Noor", (22, 50), (28, 39), "incomplete"),
+    ])
+    add(3701, RED, "R. Silva", "pressure", 31, 45, possession_id="B2")
+    add(3707, RED, "T. Okafor", "pressure", 22, 50, possession_id="B2")
+    add(3710, RED, "R. Silva", "recovery", 28, 39, outcome="won", possession_id="R2")
+    add(3710, RED, "R. Silva", "possession_change", 28, 39, outcome="won", possession_id="R2")
+    chain(RED, "R2", [
+        (3713, "R. Silva", "J. Kim", (28, 39), (20, 48), "complete"),
+    ])
+    add(3719, RED, "J. Kim", "shot", 20, 48, 0, 44, "off_target", "R2")
 
-    # 30:00–34:59: Blue plays forward through pressure, reducing high turnovers.
-    for i in range(9):
-        t = 1810 + i * 29
-        x = 18 + (i % 2) * 14
-        y = 19 + (i * 9) % 61
-        if i in (1, 4):
-            add(t - 4, RED, "T. Okafor", "pressure", 75, y, phase="response")
-        add(t, BLUE, ["B. Vale", "M. Chen", "A. Noor"][i % 3], "pass", x, y,
-            x + 23, min(y + rng.choice([-6, 0, 6]), 90), "complete", "response")
-    add(2090, BLUE, "A. Noor", "shot", 83, 51, 100, 50, "off_target", "response")
+    add(3732, BLUE, "B. Vale", "goal_kick", 7, 50, outcome="taken", possession_id="B3")
+    chain(BLUE, "B3", [
+        (3735, "B. Vale", "M. Chen", (7, 50), (17, 56), "complete"),
+        (3740, "M. Chen", "A. Noor", (17, 56), (25, 65), "complete"),
+        (3745, "A. Noor", "D. Park", (25, 65), (29, 55), "incomplete"),
+    ])
+    add(3738, RED, "J. Kim", "pressure", 17, 56, possession_id="B3")
+    add(3743, RED, "T. Okafor", "pressure", 25, 65, possession_id="B3")
+    add(3744, RED, "T. Okafor", "tackle", 25, 65, outcome="contested", possession_id="B3")
+    add(3746, RED, "J. Kim", "recovery", 29, 55, outcome="won", possession_id="R3")
+    add(3746, RED, "J. Kim", "possession_change", 29, 55, outcome="won", possession_id="R3")
+    chain(RED, "R3", [
+        (3749, "J. Kim", "R. Silva", (29, 55), (21, 49), "complete"),
+    ])
+    add(3756, RED, "R. Silva", "shot", 21, 49, 0, 53, "off_target", "R3")
+
+    add(3769, BLUE, "B. Vale", "goal_kick", 7, 50, outcome="taken", possession_id="B4")
+    chain(BLUE, "B4", [
+        (3772, "B. Vale", "M. Chen", (7, 50), (17, 44), "complete"),
+        (3777, "M. Chen", "A. Noor", (17, 44), (27, 34), "complete"),
+        (3782, "A. Noor", "S. Costa", (27, 34), (39, 42), "complete"),
+        (3786, "S. Costa", "D. Park", (39, 42), (52, 33), "complete"),
+        (3790, "D. Park", "A. Noor", (52, 33), (65, 43), "complete"),
+        (3794, "A. Noor", "S. Costa", (65, 43), (76, 47), "complete"),
+    ])
+    add(3775, RED, "R. Silva", "pressure", 17, 44, possession_id="B4")
+    add(3780, RED, "T. Okafor", "pressure", 27, 34, possession_id="B4")
+    add(3798, BLUE, "S. Costa", "shot", 76, 47, 100, 49, "off_target", "B4")
+
+    add(3811, RED, "L. Reed", "goal_kick", 93, 50, outcome="taken", possession_id="R4")
+    chain(RED, "R4", [
+        (3814, "L. Reed", "J. Kim", (93, 50), (81, 60), "complete"),
+        (3819, "J. Kim", "T. Okafor", (81, 60), (67, 71), "complete"),
+        (3823, "T. Okafor", "R. Silva", (67, 71), (52, 58), "complete"),
+        (3828, "R. Silva", "J. Kim", (52, 58), (36, 66), "complete"),
+        (3833, "J. Kim", "T. Okafor", (36, 66), (29, 52), "complete"),
+    ])
+    add(3838, RED, "T. Okafor", "shot", 29, 52, 0, 52, "off_target", "R4")
+
+    # Blue's response alternates a forward pass and a recycle in one possession.
+    add(3848, BLUE, "B. Vale", "goal_kick", 7, 50, outcome="taken", possession_id="B5")
+    chain(BLUE, "B5", [
+        (3851, "B. Vale", "M. Chen", (7, 50), (30, 44), "complete"),
+        (3856, "M. Chen", "A. Noor", (30, 44), (18, 56), "complete"),
+        (3860, "A. Noor", "S. Costa", (18, 56), (43, 42), "complete"),
+        (3864, "S. Costa", "M. Chen", (43, 42), (32, 54), "complete"),
+        (3868, "M. Chen", "D. Park", (32, 54), (55, 42), "complete"),
+        (3872, "D. Park", "S. Costa", (55, 42), (40, 55), "complete"),
+        (3876, "S. Costa", "A. Noor", (40, 55), (64, 44), "complete"),
+        (3880, "A. Noor", "D. Park", (64, 44), (52, 53), "complete"),
+        (3884, "D. Park", "S. Costa", (52, 53), (76, 46), "complete"),
+    ])
+    add(3854, RED, "R. Silva", "pressure", 30, 44, possession_id="B5")
+    add(3889, BLUE, "S. Costa", "shot", 76, 46, 100, 50, "saved", "B5")
+    add(3890, RED, "L. Reed", "recovery", 93, 50, outcome="won", possession_id="R5")
+    add(3890, RED, "L. Reed", "possession_change", 93, 50, outcome="won", possession_id="R5")
+    chain(RED, "R5", [
+        (3894, "L. Reed", "J. Kim", (93, 50), (81, 58), "complete"),
+    ])
     return sorted(events, key=lambda e: (e.second, e.id))
 
 
@@ -106,48 +183,49 @@ def _window(events: list[Event], start: int, end: int) -> list[Event]:
 
 
 def _count(events: list[Event], kind: str, team: str,
-           outcome: str | None = None, min_x: int | None = None) -> int:
+           outcome: str | None = None, max_x: int | None = None) -> int:
     return sum(e.type == kind and e.team == team
                and (outcome is None or e.outcome == outcome)
-               and (min_x is None or e.x >= min_x) for e in events)
+               and (max_x is None or e.x <= max_x) for e in events)
 
 
 def detect_insights(events: list[Event]) -> list[Insight]:
-    """Derive two insights from window comparisons; no language model decisions."""
-    baseline = _window(events, 1200, 1500)
-    press = _window(events, 1500, 1800)
-    response = _window(events, 1800, 2100)
+    """Raise insights from the event evidence, independent of generated language."""
+    baseline = _window(events, 3600, 3700)
+    press = _window(events, 3700, 3800)
+    response = _window(events, 3800, 3900)
     found: list[Insight] = []
 
-    high_before = _count(baseline, "recovery", RED, min_x=67)
-    high_press = _count(press, "recovery", RED, min_x=67)
-    pressures_before = _count(baseline, "pressure", RED, min_x=67)
-    pressures_press = _count(press, "pressure", RED, min_x=67)
-    failed_exits = _count(press, "pass", BLUE, outcome="incomplete", min_x=67)
-    if high_press >= 3 and high_press - high_before >= 2 and pressures_press >= 5:
-        evidence = tuple(e.id for e in press if e.type in ("recovery", "pressure")
-                         and e.team == RED and e.x >= 67)
+    high_before = _count(baseline, "recovery", RED, max_x=33)
+    high_press = _count(press, "recovery", RED, max_x=33)
+    pressures_before = _count(baseline, "pressure", RED, max_x=33)
+    pressures_press = _count(press, "pressure", RED, max_x=33)
+    failed_exits = _count(press, "pass", BLUE, outcome="incomplete", max_x=33)
+    if press and high_press >= 2 and high_press - high_before >= 2 and pressures_press >= 5:
+        evidence = tuple(e.id for e in press if e.team == RED and e.x <= 33
+                         and e.type in ("recovery", "pressure"))
         evidence += tuple(e.id for e in press if e.team == BLUE and e.type == "pass"
-                          and e.outcome == "incomplete" and e.x >= 67)
+                          and e.outcome == "incomplete" and e.x <= 33)
         found.append(Insight(
             "press_surge", press[-1].second, press[-1].id, "pressure_surge",
-            {"window": "25:00–29:59", "previous_window": "20:00–24:59",
+            {"window": "61:40–63:19", "previous_window": "60:00–61:39",
              "red_high_recoveries": high_press, "previous_high_recoveries": high_before,
              "red_attacking_third_pressures": pressures_press,
-             "previous_pressures": pressures_before, "blue_failed_defensive_exits": failed_exits},
+             "previous_pressures": pressures_before,
+             "blue_failed_defensive_exits": failed_exits},
             evidence))
 
-    high_response = _count(response, "recovery", RED, min_x=67)
+    high_response = _count(response, "recovery", RED, max_x=33)
     blue_progressive = sum(e.team == BLUE and e.type == "pass" and
                            e.outcome == "complete" and e.end_x is not None and
                            e.end_x - e.x >= 20 for e in response)
-    if found and high_response < high_press and blue_progressive >= 5:
+    if response and found and high_response < high_press and blue_progressive >= 5:
         evidence = tuple(e.id for e in response if e.team == BLUE and
                          e.type == "pass" and e.outcome == "complete" and
                          e.end_x is not None and e.end_x - e.x >= 20)
         found.append(Insight(
             "press_response", response[-1].second, response[-1].id, "press_response",
-            {"window": "30:00–34:59", "previous_window": "25:00–29:59",
+            {"window": "63:20–64:59", "previous_window": "61:40–63:19",
              "red_high_recoveries": high_response,
              "previous_high_recoveries": high_press,
              "blue_completed_progressive_passes": blue_progressive,

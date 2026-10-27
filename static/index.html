@@ -138,7 +138,7 @@ async function trigger(insight){
     const result=await post('/api/narrate',{insight_id:insight.id});
     if(current!==generation)return;
     latest=result;story();showEvidence(insight,result);
-    setText('source','Source: '+result.source);
+    setText('source','Source: '+result.source+(result.reason?' · '+result.reason.slice(0,160):''));
     setText('overlay-time',insight.facts.window);
     setText('overlay-text',result.overlay);
     byId('overlay').classList.remove('hidden');

@@ -31,9 +31,10 @@ The backend calls `POST {endpoint}/openai/v1/chat/completions` using the deploym
 2. Adjacent 100-second windows are compared for high recoveries, attacking-third pressures, failed exits, and successful progressive passes. Blue attacks right, so Red's high press occurs at x ≤ 33 in Blue's defensive third.
 3. Two triggered insights cover a press surge and the opponent's response.
 4. `app.py` asks Foundry to express each evidence packet as an overlay plus casual and analyst explanations.
-5. The browser renders a timed pitch replay, evidence panel, audience modes, and a segment recap.
+5. `tracking.py` generates a separate 11-v-11 synthetic tracking layer. Event actors and completed-pass recipients arrive at the recorded coordinates, while off-ball players hold a shifting 4-3-3 shape.
+6. The browser renders the timed pitch replay, evidence panel, audience modes, and a segment recap.
 
-The replay clock advances continuously. At the default **1×** speed, one wall-clock second equals one match second; **8×** completes the five-minute passage in about 37 seconds for a demo. The ball moves along pass and shot paths between tagged timestamps, and player dots interpolate between synthetic event positions. These visual positions are illustrative, not video-derived tracking data.
+The replay clock advances continuously. At the default **1×** speed, one wall-clock second equals one match second; **8×** completes the five-minute passage in about 37 seconds for a demo. The ball moves along pass and shot paths between tagged timestamps. The 22 numbered players move between half-second tracking frames. The positions are procedural, not video-derived tracking data.
 
 All clubs, players, events, and coordinates are fictional. This project uses no Premier League match data or match footage.
 

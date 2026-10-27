@@ -4,7 +4,7 @@
 Pressure Shift: Explainable Live Match Intelligence
 
 ## Elevator pitch
-Pressure Shift turns a synthetic football event stream into timely, explainable studio overlays. A transparent Python engine detects when a high press changes the opponent's buildup and when that tactical story shifts again. Microsoft Foundry's gpt-5-mini deployment expresses the verified facts as concise overlays, casual-fan explanations, analyst context, and a segment recap. Every insight links to supporting event IDs, so producers can inspect the evidence before putting a story on screen. A browser replay shows the full ingest, interpret, explain, render, and personalize pipeline without using real match footage or data.
+Pressure Shift turns a synthetic football event stream into timely, explainable studio overlays. A transparent Python engine detects when a high press changes the opponent's buildup and when that tactical story shifts again. A procedural 11-v-11 tracking layer makes the event replay readable in the context of team shape. Microsoft Foundry's gpt-5-mini deployment expresses the verified facts as concise overlays, casual-fan explanations, analyst context, and a segment recap. Every insight links to supporting event IDs, so producers can inspect the evidence before putting a story on screen. A browser replay shows the full ingest, interpret, explain, render, and personalize pipeline without using real match footage or data.
 
 ## What to show in the under-two-minute video
 
@@ -19,7 +19,7 @@ Record the app functioning on your computer. Upload the video to a permitted pub
 
 ## Architecture
 
-`Synthetic event stream → Python window metrics → evidence packet → Microsoft Foundry gpt-5-mini → checked narrative → timed overlay + audience modes + recap`
+`Synthetic event stream + 11-v-11 tracking → Python window metrics → evidence packet → Microsoft Foundry gpt-5-mini → checked narrative → timed overlay + audience modes + recap`
 
 ## Judging access
 

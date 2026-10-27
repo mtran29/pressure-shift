@@ -9,6 +9,7 @@ from pathlib import Path
 
 from engine import EVENTS, INSIGHTS
 from foundry import configured, narrate, recap
+from tracking import TRACKING
 
 
 ROOT = Path(__file__).resolve().parent
@@ -30,6 +31,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/match":
             self._json(200, {"events": [e.public() for e in EVENTS],
                              "insights": [i.public() for i in INSIGHTS],
+                             "tracking": TRACKING,
                              "foundry_configured": configured()})
         elif self.path == "/api/health":
             self._json(200, {"ok": True, "foundry_configured": configured()})
@@ -76,4 +78,3 @@ if __name__ == "__main__":
     print(f"Pressure Shift running at http://localhost:{port}")
     print("Foundry configured:", configured())
     server.serve_forever()
-

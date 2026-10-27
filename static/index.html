@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pressure Shift · Synthetic Match Intelligence</title>
+  <style>
+    :root { color-scheme: dark; --bg:#071319; --panel:#10242b; --panel2:#15333a; --line:#28515a; --ink:#e7f4f0; --muted:#9bb8b7; --red:#ff735f; --blue:#6ac9ff; --lime:#c9f377; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:radial-gradient(circle at 85% -10%,#1b4146 0%,var(--bg) 47%); color:var(--ink); font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button { font:inherit; cursor:pointer; }
+    .shell { max-width:1440px; margin:auto; padding:24px; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:18px; margin-bottom:22px; }
+    .brand { display:flex; align-items:center; gap:13px; }
+    .mark { width:41px; height:41px; border:2px solid var(--lime); border-radius:12px; display:grid; place-items:center; color:var(--lime); font-size:25px; font-weight:800; transform:rotate(-8deg); }
+    h1 { font-size:25px; letter-spacing:-.04em; margin:0; line-height:1.05; }
+    .sub { color:var(--muted); font-size:13px; margin-top:3px; }
+    .badge { border:1px solid var(--line); color:var(--lime); border-radius:99px; padding:7px 12px; font-size:12px; text-transform:uppercase; letter-spacing:.13em; white-space:nowrap; }
+    .layout { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(330px,.8fr); gap:18px; }
+    .card { background:linear-gradient(145deg,rgba(24,54,61,.95),rgba(10,30,37,.98)); border:1px solid var(--line); border-radius:18px; overflow:hidden; box-shadow:0 20px 70px #0004; }
+    .card-pad { padding:20px; }
+    .matchhead { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:17px; }
+    .teams { font-size:21px; font-weight:700; letter-spacing:-.03em; }
+    .red { color:var(--red); } .blue { color:var(--blue); }
+    .clock { font-variant-numeric:tabular-nums; font-weight:800; background:#071c23; border:1px solid var(--line); border-radius:10px; padding:7px 11px; }
+    .pitch-wrap { position:relative; background:#123e38; border-radius:12px; border:1px solid #39816e; overflow:hidden; }
+    canvas { width:100%; aspect-ratio: 1.78; display:block; }
+    .overlay { position:absolute; left:16px; bottom:16px; width:min(480px,calc(100% - 32px)); background:rgba(5,21,29,.94); border-left:5px solid var(--lime); padding:13px 15px; border-radius:5px 10px 10px 5px; box-shadow:0 12px 35px #0009; transition:opacity .25s; }
+    .overlay.hidden { opacity:0; pointer-events:none; }
+    .overline { color:var(--lime); font-size:10px; font-weight:800; letter-spacing:.17em; text-transform:uppercase; }
+    .overlay strong { display:block; font-size:19px; line-height:1.25; margin-top:3px; }
+    .controls { display:flex; align-items:center; gap:10px; margin-top:16px; }
+    .primary { border:0; background:var(--lime); color:#102222; font-weight:800; border-radius:9px; padding:10px 19px; min-width:92px; }
+    .secondary { background:transparent; color:var(--ink); border:1px solid var(--line); border-radius:9px; padding:9px 14px; }
+    input[type=range] { flex:1; accent-color:var(--lime); min-width:60px; }
+    .caption { color:var(--muted); font-size:12px; margin-top:9px; }
+    .right { display:flex; flex-direction:column; gap:18px; }
+    .section-title { margin:0 0 8px; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.15em; color:var(--lime); }
+    .story-title { font-size:23px; font-weight:750; margin:0 0 12px; line-height:1.22; letter-spacing:-.025em; }
+    .story { color:#d1e2df; min-height:76px; margin:0 0 16px; }
+    .switch { display:flex; background:#071c23; border:1px solid var(--line); padding:4px; border-radius:10px; gap:4px; }
+    .switch button { flex:1; border:0; border-radius:7px; padding:7px 9px; color:var(--muted); background:transparent; font-size:13px; }
+    .switch button.active { color:#09211e; background:var(--lime); font-weight:800; }
+    .source { color:var(--muted); font-size:12px; margin-top:13px; }
+    .evidence { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:14px 0; }
+    .stat { background:#09232a; border:1px solid var(--line); border-radius:9px; padding:9px; }
+    .stat b { display:block; font-size:24px; line-height:1; color:var(--lime); }
+    .stat span { display:block; margin-top:6px; color:var(--muted); font-size:11px; line-height:1.2; }
+    .ids { color:var(--muted); font-size:12px; word-break:break-word; }
+    .feed { display:flex; flex-direction:column; gap:7px; max-height:155px; overflow:auto; }
+    .feed-item { display:flex; justify-content:space-between; gap:12px; padding:6px 0; border-bottom:1px solid #28515a75; font-size:12px; }
+    .feed-item span:first-child { color:var(--muted); white-space:nowrap; }
+    .recap { margin-top:18px; padding:19px 20px; }
+    .recap p { margin:5px 0 0; color:#d1e2df; }
+    .footer { text-align:center; font-size:12px; color:var(--muted); margin:17px 0 0; }
+    @media(max-width:850px){ .layout{grid-template-columns:1fr;} .shell{padding:14px;} header{align-items:flex-start;} .badge{font-size:10px;} }
+  </style>
+</head>
+<body>
+<main class="shell">
+  <header>
+    <div class="brand"><div class="mark">↗</div><div><h1>Pressure Shift</h1><div class="sub">Explainable match intelligence for the live studio</div></div></div>
+    <div class="badge">Synthetic match · no real footage</div>
+  </header>
+  <div class="layout">
+    <section class="card card-pad" aria-label="Synthetic match replay">
+      <div class="matchhead"><div class="teams"><span class="red">Red FC</span> <span style="color:#718f91">vs</span> <span class="blue">Blue FC</span></div><div class="clock" id="clock">20:00</div></div>
+      <div class="pitch-wrap"><canvas id="pitch" width="960" height="540" aria-label="Animated football pitch"></canvas><div class="overlay hidden" id="overlay"><div class="overline">Live insight · <span id="overlay-time"></span></div><strong id="overlay-text"></strong></div></div>
+      <div class="controls"><button class="primary" id="play">Play</button><button class="secondary" id="reset">Reset</button><input id="seek" type="range" min="0" max="100" value="0" aria-label="Replay position"></div>
+      <div class="caption">Blue FC attacks right. Replay speed: one event every 0.6 seconds. Overlays appear when a measured trend changes.</div>
+      <div class="card-pad" style="padding:16px 0 0"><h2 class="section-title">Event feed</h2><div class="feed" id="feed"><div class="caption">Press Play to begin the fictional match segment.</div></div></div>
+    </section>
+    <div class="right">
+      <section class="card card-pad"><h2 class="section-title">Insight desk</h2><h3 class="story-title" id="story-title">Waiting for a meaningful shift</h3><p class="story" id="story">The engine compares five-minute windows. It only raises an insight when the event evidence crosses a threshold.</p><div class="switch"><button id="casual" class="active">Casual fan</button><button id="analyst">Analyst</button></div><div class="source" id="source">Source: Python event engine</div></section>
+      <section class="card card-pad"><h2 class="section-title">Why this appeared</h2><div class="evidence"><div class="stat"><b id="stat1">—</b><span id="label1">High recoveries</span></div><div class="stat"><b id="stat2">—</b><span id="label2">Pressures</span></div><div class="stat"><b id="stat3">—</b><span id="label3">Failed exits</span></div></div><div class="ids" id="ids">Supporting event IDs will appear here.</div></section>
+    </div>
+  </div>
+  <section class="card recap"><h2 class="section-title">Segment recap</h2><p id="recap">The recap is generated when the replay finishes.</p><div class="source" id="recap-source"></div></section>
+  <p class="footer">All teams, players, coordinates, and events are fictional. Tactical explanations are inferences from synthetic event data.</p>
+</main>
+<script>
+const byId = id => document.getElementById(id);
+let events = [], insights = [], cursor = -1, timer = null, mode = 'casual', latest = null, activeInsight = null;
+let generation = 0;
+
+function pitch() {
+  const canvas = byId('pitch'), c = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
+  c.fillStyle='#165343'; c.fillRect(0,0,w,h);
+  for(let i=0;i<10;i++){ c.fillStyle=i%2?'#ffffff06':'#00000008'; c.fillRect(i*w/10,0,w/10,h); }
+  c.strokeStyle='#d8f6e0b8'; c.lineWidth=3; c.strokeRect(26,25,w-52,h-50);
+  c.beginPath(); c.moveTo(w/2,25); c.lineTo(w/2,h-25); c.stroke();
+  c.beginPath(); c.arc(w/2,h/2,73,0,Math.PI*2); c.stroke();
+  c.strokeRect(26,h/2-110,145,220); c.strokeRect(w-171,h/2-110,145,220);
+  c.strokeRect(26,h/2-49,52,98); c.strokeRect(w-78,h/2-49,52,98);
+  const recent=events.slice(Math.max(0,cursor-13),cursor+1);
+  for(const e of recent){
+    let x=26+(w-52)*e.x/100, y=25+(h-50)*e.y/100;
+    if(e.end_x!==null && e.end_x!==undefined){
+      let x2=26+(w-52)*e.end_x/100, y2=25+(h-50)*e.end_y/100;
+      c.strokeStyle=e.team==='Red FC'?'#ff735f75':'#6ac9ff75'; c.lineWidth=2.5;
+      c.beginPath();c.moveTo(x,y);c.lineTo(x2,y2);c.stroke();
+    }
+    c.beginPath(); c.arc(x,y,e===events[cursor]?10:6,0,Math.PI*2);
+    c.fillStyle=e.team==='Red FC'?'#ff735f':'#6ac9ff';c.fill();
+    if(e===events[cursor]){c.strokeStyle='#fff';c.lineWidth=2;c.stroke();}
+  }
+  c.fillStyle='#fff9';c.font='bold 17px sans-serif';c.fillText('RED ATTACKS ←',42,51);c.fillText('BLUE ATTACKS →',w-239,51);
+}
+function setText(id,value){byId(id).textContent=value;}
+function story(){if(!latest)return;setText('story',latest[mode]);setText('story-title',latest.overlay);}
+function setMode(value){mode=value;byId('casual').classList.toggle('active',mode==='casual');byId('analyst').classList.toggle('active',mode==='analyst');story();}
+function eventLine(e){const div=document.createElement('div');div.className='feed-item';const a=document.createElement('span');a.textContent=e.minute+' · '+e.id;const b=document.createElement('span');b.textContent=e.team+' · '+e.type+(e.outcome?' · '+e.outcome:'');div.append(a,b);return div;}
+function showEvidence(insight, narrative){
+  const f=insight.facts;
+  if(insight.kind==='pressure_surge'){
+    setText('stat1',f.red_high_recoveries+' vs '+f.previous_high_recoveries);
+    setText('label1','Red high recoveries');
+    setText('stat2',f.red_attacking_third_pressures);
+    setText('label2','Attacking-third pressures');
+    setText('stat3',f.blue_failed_defensive_exits);
+    setText('label3','Blue failed exits');
+  } else {
+    setText('stat1',f.red_high_recoveries+' vs '+f.previous_high_recoveries);
+    setText('label1','Red high recoveries');
+    setText('stat2',f.blue_completed_progressive_passes);
+    setText('label2','Blue progressive passes');
+    setText('stat3','≥20%');
+    setText('label3','Progressive pass distance');
+  }
+  setText('ids','Evidence: '+narrative.evidence_ids.join(', '));
+}
+async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw Error('HTTP '+r.status);return r.json();}
+async function trigger(insight){
+  const current=++generation;activeInsight=insight;
+  setText('story-title','Writing the insight…');setText('story','Foundry is turning verified event facts into audience-ready language.');
+  setText('source','Source: awaiting response');
+  try {
+    const result=await post('/api/narrate',{insight_id:insight.id});
+    if(current!==generation)return;
+    latest=result;story();showEvidence(insight,result);
+    setText('source','Source: '+result.source);
+    setText('overlay-time',insight.facts.window);
+    setText('overlay-text',result.overlay);
+    byId('overlay').classList.remove('hidden');
+  } catch(error){setText('story-title','Insight unavailable');setText('story',String(error));}
+}
+async function finish(){pause();try{const result=await post('/api/recap',{});setText('recap',result.text);setText('recap-source','Source: '+result.source);}catch(error){setText('recap','Recap unavailable: '+error);}}
+function step(){
+  if(cursor>=events.length-1){finish();return;}
+  cursor++;
+  const e=events[cursor];setText('clock',e.minute);byId('seek').value=Math.round(100*cursor/(events.length-1));
+  const feed=byId('feed');if(cursor===0)feed.textContent='';feed.prepend(eventLine(e));while(feed.children.length>8)feed.lastChild.remove();
+  for(const insight of insights){if(insight.trigger_event_id===e.id)trigger(insight);}
+  pitch();
+  if(cursor===events.length-1)finish();
+}
+function pause(){if(timer){clearInterval(timer);timer=null;}setText('play','Play');}
+function play(){if(timer){pause();return;}if(cursor>=events.length-1)reset();timer=setInterval(step,600);setText('play','Pause');step();}
+function reset(){pause();generation++;cursor=-1;latest=null;activeInsight=null;byId('overlay').classList.add('hidden');byId('seek').value=0;setText('clock','20:00');setText('story-title','Waiting for a meaningful shift');setText('story','The engine compares five-minute windows. It only raises an insight when the event evidence crosses a threshold.');setText('source','Source: Python event engine');setText('stat1','—');setText('stat2','—');setText('stat3','—');setText('ids','Supporting event IDs will appear here.');setText('recap','The recap is generated when the replay finishes.');setText('recap-source','');byId('feed').textContent='';pitch();}
+byId('play').onclick=play;byId('reset').onclick=reset;
+byId('casual').onclick=()=>setMode('casual');byId('analyst').onclick=()=>setMode('analyst');
+byId('seek').oninput=e=>{const target=Math.round(Number(e.target.value)*(events.length-1)/100);reset();while(cursor<target)step();};
+fetch('/api/match').then(r=>r.json()).then(data=>{events=data.events;insights=data.insights;pitch();if(!data.foundry_configured)setText('source','Source: Local fallback until Foundry is configured');}).catch(err=>setText('story',String(err)));
+</script>
+</body>
+</html>

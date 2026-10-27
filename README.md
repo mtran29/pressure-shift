@@ -10,7 +10,7 @@ Python 3.10+; no third-party packages.
 python3 app.py
 ```
 
-Open <http://localhost:8000>, press **Play**, and use **4× demo** to see both overlays in about 18 seconds. Use **1×** to inspect player movement. The demo works without Azure credentials with an explicitly labeled local editorial fallback.
+Open <http://localhost:8000>. Wait until the status says **Ready**, then press **Play**. Use **Jump to: Red's press** and **Blue's response** to inspect each overlay immediately, or use **4× demo** to see both in about 18 seconds. Fan, Analyst, and language controls change the wording while an overlay is visible. Use **1×** to inspect player movement. The demo works without Azure credentials with an explicitly labeled local editorial fallback. If the status says **Load failed**, check that this server is running and reload the page.
 
 ## Connect Microsoft Foundry
 

@@ -85,7 +85,8 @@ def narrate(insight: Insight) -> dict:
                 "overlay": parsed["overlay"], "casual": parsed["casual"],
                 "analyst": parsed["analyst"], "evidence_ids": ids,
                 "usage": response.get("usage", {})}
-    except (ValueError, KeyError, IndexError, TypeError, TimeoutError, OSError, RuntimeError) as exc:
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError,
+            TimeoutError, OSError, RuntimeError) as exc:
         return fallback(insight, str(exc))
 
 

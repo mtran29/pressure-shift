@@ -19,14 +19,20 @@
     .layout { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(330px,.8fr); gap:18px; }
     .card { background:linear-gradient(145deg,rgba(24,54,61,.95),rgba(10,30,37,.98)); border:1px solid var(--line); border-radius:18px; overflow:hidden; box-shadow:0 20px 70px #0004; }
     .card-pad { padding:20px; }
-    .matchhead { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:17px; }
+    .matchhead { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:17px; }
     .teams { font-size:21px; font-weight:700; letter-spacing:-.03em; }
+    .match-state { color:var(--muted); font-size:12px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
+    .match-state.pressing { color:var(--red); }
     .red { color:var(--red); } .blue { color:var(--blue); }
     .clock { font-variant-numeric:tabular-nums; font-weight:800; background:#071c23; border:1px solid var(--line); border-radius:10px; padding:7px 11px; }
     .pitch-wrap { position:relative; background:#123e38; border-radius:12px; border:1px solid #39816e; overflow:hidden; }
     canvas { width:100%; aspect-ratio: 1.55; display:block; }
     .overlay { position:absolute; left:16px; bottom:16px; width:min(480px,calc(100% - 32px)); background:rgba(5,21,29,.94); border-left:5px solid var(--lime); padding:13px 15px; border-radius:5px 10px 10px 5px; box-shadow:0 12px 35px #0009; transition:opacity .25s; }
     .overlay.hidden { opacity:0; pointer-events:none; }
+    .pressure-cue { position:absolute; top:70px; left:16px; background:#351c1be8; border:1px solid var(--red); border-radius:9px; padding:8px 12px; box-shadow:0 7px 24px #0008; }
+    .pressure-cue.hidden { display:none; }
+    .pressure-cue b { display:block; color:var(--red); font-size:12px; letter-spacing:.14em; }
+    .pressure-cue span { display:block; color:#fff; font-size:12px; }
     .overline { color:var(--lime); font-size:10px; font-weight:800; letter-spacing:.17em; text-transform:uppercase; }
     .overlay strong { display:block; font-size:19px; line-height:1.25; margin-top:3px; }
     .controls { display:flex; align-items:center; gap:10px; margin-top:16px; }
@@ -66,8 +72,8 @@
   </header>
   <div class="layout">
     <section class="card card-pad" aria-label="Synthetic match replay">
-      <div class="matchhead"><div class="teams"><span class="red">Red FC</span> <span style="color:#718f91">vs</span> <span class="blue">Blue FC</span></div><div class="clock" id="clock">60:00</div></div>
-      <div class="pitch-wrap"><canvas id="pitch" width="960" height="620" aria-label="Animated 11 versus 11 synthetic football pitch"></canvas><div class="overlay hidden" id="overlay"><div class="overline">Live insight · <span id="overlay-time"></span></div><strong id="overlay-text"></strong></div></div>
+      <div class="matchhead"><div class="teams"><span class="red">Red FC</span> <span style="color:#718f91">vs</span> <span class="blue">Blue FC</span></div><div class="match-state" id="match-state">Open play</div><div class="clock" id="clock">60:00</div></div>
+      <div class="pitch-wrap"><canvas id="pitch" width="960" height="620" aria-label="Animated 11 versus 11 synthetic football pitch"></canvas><div class="pressure-cue hidden" id="pressure-cue"><b>RED PRESSURE</b><span id="pressure-detail"></span></div><div class="overlay hidden" id="overlay"><div class="overline">Live insight · <span id="overlay-time"></span></div><strong id="overlay-text"></strong></div></div>
       <div class="controls"><button class="primary" id="play">Play</button><button class="secondary" id="reset">Reset</button><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Match timeline"><select id="speed" aria-label="Playback speed"><option value="1" selected>1×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option></select></div>
       <div class="caption">11 vs 11 in a shifting 4-3-3. Blue attacks right. At 1×, the clock matches real time. Player positions are procedural synthetic tracking, anchored to events—not footage-derived tracking. Use 8× for a short demo.</div>
       <div class="card-pad" style="padding:16px 0 0"><h2 class="section-title">Event feed</h2><div class="feed" id="feed"><div class="caption">Press Play to begin the fictional match segment.</div></div></div>
@@ -126,6 +132,9 @@ function trackedPositions(t){
     p[1]+(after[i+1][1]-p[1])*f
   ]);
 }
+function pressureAt(t){
+  return events.filter(e=>e.type==='pressure'&&t>=e.second-2&&t<=e.second+5).at(-1);
+}
 
 function pitch() {
   const canvas = byId('pitch'), c = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
@@ -137,6 +146,7 @@ function pitch() {
   c.strokeRect(26,h/2-169,143,338); c.strokeRect(w-169,h/2-169,143,338);
   c.strokeRect(26,h/2-77,48,154); c.strokeRect(w-74,h/2-77,48,154);
   const current=events[cursor], possession=current?.possession_id;
+  const pressure=pressureAt(playhead),positions=trackedPositions(playhead);
   const recent=events.slice(0,cursor+1).filter(e=>e.possession_id===possession && e.type!=='possession_change');
   for(const e of recent){
     let x=26+(w-52)*e.x/100, y=25+(h-50)*e.y/100;
@@ -149,16 +159,28 @@ function pitch() {
       c.setLineDash([]);
       c.beginPath();c.arc(x2,y2,4,0,Math.PI*2);c.fillStyle=e.team==='Red FC'?'#ff735f':'#6ac9ff';c.fill();
     }
-    if(e.type==='pressure' || e.type==='tackle'){
+    if(e.type==='tackle' && e===current){
       const age=playhead-e.second;
-      const radius=e===current?12+4*Math.sin(age*7):13;
+      const radius=12+4*Math.sin(age*7);
       c.strokeStyle='#ff735faa';c.lineWidth=2;c.beginPath();c.arc(x,y,radius,0,Math.PI*2);c.stroke();
     }
-    else if(e.type!=='pass'){c.beginPath();c.arc(x,y,5,0,Math.PI*2);c.fillStyle=e.team==='Red FC'?'#ff735f':'#6ac9ff';c.fill();}
+    else if(e.type!=='pass'&&e.type!=='pressure'){c.beginPath();c.arc(x,y,5,0,Math.PI*2);c.fillStyle=e.team==='Red FC'?'#ff735f':'#6ac9ff';c.fill();}
   }
-  const positions=trackedPositions(playhead);
-  const activeName=current?.type==='pass'&&current.outcome==='complete'&&
-    playhead>=current.second+flightDuration(current)?current.recipient:current?.player;
+  const ball=ballPosition();
+  if(pressure&&ball){
+    const index=tracking.roster.findIndex(p=>p.name===pressure.player);
+    if(index>=0){
+      const presser=positions[index];
+      const px=26+(w-52)*presser[0]/100,py=25+(h-50)*presser[1]/100;
+      const bx=26+(w-52)*ball.x/100,by=25+(h-50)*ball.y/100;
+      c.fillStyle='#ff735f28';c.beginPath();c.arc(bx,by,38,0,Math.PI*2);c.fill();
+      c.strokeStyle='#ff735f';c.lineWidth=3;c.setLineDash([8,6]);
+      c.beginPath();c.moveTo(px,py);c.lineTo(bx,by);c.stroke();c.setLineDash([]);
+      c.strokeStyle='#ff735f';c.lineWidth=2;c.beginPath();c.arc(px,py,18+3*Math.sin(playhead*6),0,Math.PI*2);c.stroke();
+    }
+  }
+  const activeName=pressure?.player || (current?.type==='pass'&&current.outcome==='complete'&&
+    playhead>=current.second+flightDuration(current)?current.recipient:current?.player);
   for(let i=0;i<tracking.roster.length;i++){
     const player=tracking.roster[i],p=positions[i];
     const x=26+(w-52)*p[0]/100,y=25+(h-50)*p[1]/100;
@@ -175,7 +197,6 @@ function pitch() {
     }
   }
   c.globalAlpha=1;c.textAlign='left';c.textBaseline='alphabetic';
-  const ball=ballPosition();
   if(ball){
     c.beginPath();c.arc(26+(w-52)*ball.x/100,25+(h-50)*ball.y/100,9,0,Math.PI*2);
     c.fillStyle='#fff';c.fill();c.strokeStyle='#0b2825';c.lineWidth=3;c.stroke();
@@ -233,6 +254,14 @@ async function finish(){
 function updateDisplay(){
   setText('clock',timeLabel(playhead));
   byId('seek').value=Math.round(1000*(playhead-startTime)/(endTime-startTime));
+  const pressPhase=playhead>=3700&&playhead<3800;
+  const pressCount=events.filter(e=>e.type==='pressure'&&e.phase==='press'&&e.second<=playhead).length;
+  setText('match-state',pressPhase?'Red high press · '+pressCount+' pressures':
+    playhead>=3848?'Blue plays through':playhead>=3800?'Press eases':'Open play');
+  byId('match-state').classList.toggle('pressing',pressPhase);
+  const pressure=pressureAt(playhead);
+  byId('pressure-cue').classList.toggle('hidden',!pressure);
+  if(pressure)setText('pressure-detail',pressure.player+' closes the ball · '+pressure.minute);
   pitch();
 }
 function addToFeed(e){

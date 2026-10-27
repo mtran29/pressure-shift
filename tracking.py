@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from bisect import bisect_left
 from dataclasses import dataclass
-from math import hypot
+from math import exp, hypot
 
 from engine import BLUE, RED, EVENTS, Event
 
@@ -105,6 +105,19 @@ def _smooth(value: float) -> float:
     return f * f * (3 - 2 * f)
 
 
+def _support_offset(player: Player, ball_x: float,
+                    in_possession: bool) -> float:
+    """Move a few metres toward the ball while retaining each positional line."""
+    if player.role == "GK":
+        return 0.0
+    line = ("front" if player.role in ("RW", "ST", "LW") else
+            "mid" if player.role in ("DM", "RCM", "LCM") else "back")
+    rate = {"front": .09, "mid": .07, "back": .04}[line]
+    if not in_possession:
+        rate *= 1.1 if line == "front" else .6
+    return max(-4, min(4, (ball_x - player.x) * rate))
+
+
 def _position(player: Player, points: list[tuple[float, float, float]],
               t: float, shift_x: float, shift_y: float) -> tuple[float, float]:
     factor = {"GK": .08, "RB": .55, "RCB": .5, "LCB": .5, "LB": .55,
@@ -147,19 +160,35 @@ def generate_tracking(events: list[Event] = EVENTS) -> dict:
     ordered_times = sorted(times)
     frames: list[list] = []
     event_index = 0
-    shape_x = shape_y = 0.0
+    shape: dict[str, tuple[float, float]] = {}
     previous_t = ordered_times[0]
     for t in ordered_times:
         while event_index + 1 < len(events) and events[event_index + 1].second <= t:
             event_index += 1
+        possession = events[event_index].possession_id
+        controlling_team = BLUE if possession.startswith("B") else RED
         ball_x, ball_y = _ball_at(events, event_index, t)
         wanted_x = max(-13, min(13, (ball_x - 50) * .30))
         wanted_y = max(-7, min(7, (ball_y - 50) * .18))
         dt = t - previous_t
-        shape_x += max(-2 * dt, min(2 * dt, wanted_x - shape_x))
-        shape_y += max(-1.5 * dt, min(1.5 * dt, wanted_y - shape_y))
-        positions = [_position(player, anchors[player.name], t, shape_x, shape_y)
-                     for player in ROSTER]
+        positions = []
+        for player in ROSTER:
+            lateral = max(-3, min(3, (ball_y - player.y) * .06))
+            target = (wanted_x + _support_offset(player, ball_x,
+                                                 player.team == controlling_team),
+                      wanted_y + lateral)
+            if player.name not in shape:
+                shape[player.name] = target
+            else:
+                x, y = shape[player.name]
+                tau = 2.8 + player.number % 5 * .8
+                if player.role == "GK":
+                    tau += 2
+                alpha = 1 - exp(-dt / tau)
+                shape[player.name] = (x + (target[0] - x) * alpha,
+                                      y + (target[1] - y) * alpha)
+            x, y = _position(player, anchors[player.name], t, *shape[player.name])
+            positions.append((x, y))
         frames.append([round(t, 3)] + [[round(x, 2), round(y, 2)]
                                           for x, y in positions])
         previous_t = t

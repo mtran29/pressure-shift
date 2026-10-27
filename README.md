@@ -34,7 +34,7 @@ The backend calls `POST {endpoint}/openai/v1/chat/completions` using the deploym
 5. `tracking.py` generates a separate 11-v-11 synthetic tracking layer. Event actors and completed-pass recipients arrive at the recorded coordinates, while off-ball players hold a shifting 4-3-3 shape.
 6. The browser renders the timed pitch replay, evidence panel, audience modes, and a segment recap.
 
-The replay clock advances continuously. At the default **1×** speed, one wall-clock second equals one match second; **8×** completes the five-minute passage in about 37 seconds for a demo. The ball moves along pass and shot paths between tagged timestamps. The 22 numbered players move between half-second tracking frames. The positions are procedural, not video-derived tracking data.
+The replay clock advances continuously. At the default **1×** speed, one wall-clock second equals one match second; **8×** completes the five-minute passage in about 37 seconds for a demo. The ball moves along pass and shot paths between tagged timestamps. The 22 numbered players move between half-second tracking frames, with role-aware support positions and different response times so movement continues after a reception. A red approach line, ball-zone highlight, and label show each tagged pressure as it develops. The positions are procedural, not video-derived tracking data.
 
 All clubs, players, events, and coordinates are fictional. This project uses no Premier League match data or match footage.
 

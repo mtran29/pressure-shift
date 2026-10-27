@@ -78,12 +78,12 @@ def generate_match() -> list[Event]:
     add(3600, BLUE, "B. Vale", "goal_kick", 7, 50, outcome="taken", possession_id="B1")
     chain(BLUE, "B1", [
         (3603, "B. Vale", "M. Chen", (7, 50), (17, 43), "complete"),
-        (3607, "M. Chen", "A. Noor", (17, 43), (25, 30), "complete"),
-        (3612, "A. Noor", "M. Chen", (25, 30), (33, 42), "complete"),
-        (3616, "M. Chen", "S. Costa", (33, 42), (45, 30), "complete"),
-        (3621, "S. Costa", "A. Noor", (45, 30), (56, 43), "complete"),
-        (3626, "A. Noor", "D. Park", (56, 43), (66, 31), "complete"),
-        (3631, "D. Park", "S. Costa", (66, 31), (76, 43), "complete"),
+        (3608, "M. Chen", "A. Noor", (17, 43), (25, 30), "complete"),
+        (3611, "A. Noor", "M. Chen", (25, 30), (33, 42), "complete"),
+        (3617, "M. Chen", "S. Costa", (33, 42), (45, 30), "complete"),
+        (3620, "S. Costa", "A. Noor", (45, 30), (56, 43), "complete"),
+        (3627, "A. Noor", "D. Park", (56, 43), (66, 31), "complete"),
+        (3632, "D. Park", "S. Costa", (66, 31), (76, 43), "complete"),
     ])
     add(3609, RED, "R. Silva", "pressure", 25, 30, possession_id="B1")
     add(3637, BLUE, "S. Costa", "shot", 76, 43, 100, 47, "saved", "B1")
@@ -91,11 +91,11 @@ def generate_match() -> list[Event]:
     add(3638, RED, "L. Reed", "possession_change", 93, 50, outcome="won", possession_id="R1")
     chain(RED, "R1", [
         (3646, "L. Reed", "J. Kim", (93, 50), (81, 58), "complete"),
-        (3652, "J. Kim", "T. Okafor", (81, 58), (69, 70), "complete"),
-        (3658, "T. Okafor", "R. Silva", (69, 70), (59, 56), "complete"),
+        (3653, "J. Kim", "T. Okafor", (81, 58), (69, 70), "complete"),
+        (3657, "T. Okafor", "R. Silva", (69, 70), (59, 56), "complete"),
         (3664, "R. Silva", "J. Kim", (59, 56), (47, 68), "complete"),
-        (3670, "J. Kim", "T. Okafor", (47, 68), (36, 53), "complete"),
-        (3675, "T. Okafor", "R. Silva", (36, 53), (27, 47), "complete"),
+        (3671, "J. Kim", "T. Okafor", (47, 68), (36, 53), "complete"),
+        (3676, "T. Okafor", "R. Silva", (36, 53), (27, 47), "complete"),
     ])
     add(3681, RED, "R. Silva", "shot", 27, 47, 0, 50, "saved", "R1")
     add(3682, BLUE, "B. Vale", "recovery", 7, 50, outcome="won", possession_id="B2")
@@ -135,11 +135,11 @@ def generate_match() -> list[Event]:
     add(3769, BLUE, "B. Vale", "goal_kick", 7, 50, outcome="taken", possession_id="B4")
     chain(BLUE, "B4", [
         (3772, "B. Vale", "M. Chen", (7, 50), (17, 44), "complete"),
-        (3777, "M. Chen", "A. Noor", (17, 44), (27, 34), "complete"),
-        (3782, "A. Noor", "S. Costa", (27, 34), (39, 42), "complete"),
-        (3786, "S. Costa", "D. Park", (39, 42), (52, 33), "complete"),
-        (3790, "D. Park", "A. Noor", (52, 33), (65, 43), "complete"),
-        (3794, "A. Noor", "S. Costa", (65, 43), (76, 47), "complete"),
+        (3776, "M. Chen", "A. Noor", (17, 44), (27, 34), "complete"),
+        (3781, "A. Noor", "S. Costa", (27, 34), (39, 42), "complete"),
+        (3785, "S. Costa", "D. Park", (39, 42), (52, 33), "complete"),
+        (3791, "D. Park", "A. Noor", (52, 33), (65, 43), "complete"),
+        (3795, "A. Noor", "S. Costa", (65, 43), (76, 47), "complete"),
     ])
     add(3775, RED, "R. Silva", "pressure", 17, 44, possession_id="B4")
     add(3780, RED, "T. Okafor", "pressure", 27, 34, possession_id="B4")
@@ -159,14 +159,14 @@ def generate_match() -> list[Event]:
     add(3848, BLUE, "B. Vale", "goal_kick", 7, 50, outcome="taken", possession_id="B5")
     chain(BLUE, "B5", [
         (3851, "B. Vale", "M. Chen", (7, 50), (30, 44), "complete"),
-        (3856, "M. Chen", "A. Noor", (30, 44), (18, 56), "complete"),
-        (3860, "A. Noor", "S. Costa", (18, 56), (43, 42), "complete"),
+        (3855, "M. Chen", "A. Noor", (30, 44), (18, 56), "complete"),
+        (3861, "A. Noor", "S. Costa", (18, 56), (43, 42), "complete"),
         (3864, "S. Costa", "M. Chen", (43, 42), (32, 54), "complete"),
-        (3868, "M. Chen", "D. Park", (32, 54), (55, 42), "complete"),
-        (3872, "D. Park", "S. Costa", (55, 42), (40, 55), "complete"),
-        (3876, "S. Costa", "A. Noor", (40, 55), (64, 44), "complete"),
-        (3880, "A. Noor", "D. Park", (64, 44), (52, 53), "complete"),
-        (3884, "D. Park", "S. Costa", (52, 53), (76, 46), "complete"),
+        (3869, "M. Chen", "D. Park", (32, 54), (55, 42), "complete"),
+        (3873, "D. Park", "S. Costa", (55, 42), (40, 55), "complete"),
+        (3877, "S. Costa", "A. Noor", (40, 55), (64, 44), "complete"),
+        (3881, "A. Noor", "D. Park", (64, 44), (52, 53), "complete"),
+        (3885, "D. Park", "S. Costa", (52, 53), (76, 46), "complete"),
     ])
     add(3854, RED, "R. Silva", "pressure", 30, 44, possession_id="B5")
     add(3889, BLUE, "S. Costa", "shot", 76, 46, 100, 50, "saved", "B5")

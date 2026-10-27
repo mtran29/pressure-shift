@@ -31,7 +31,8 @@
     .overlay strong { display:block; font-size:19px; line-height:1.25; margin-top:3px; }
     .controls { display:flex; align-items:center; gap:10px; margin-top:16px; }
     .primary { border:0; background:var(--lime); color:#102222; font-weight:800; border-radius:9px; padding:10px 19px; min-width:92px; }
-    .secondary { background:transparent; color:var(--ink); border:1px solid var(--line); border-radius:9px; padding:9px 14px; }
+    .secondary, select { background:#071c23; color:var(--ink); border:1px solid var(--line); border-radius:9px; padding:9px 14px; }
+    select { font:inherit; min-width:74px; }
     input[type=range] { flex:1; accent-color:var(--lime); min-width:60px; }
     .caption { color:var(--muted); font-size:12px; margin-top:9px; }
     .right { display:flex; flex-direction:column; gap:18px; }
@@ -54,6 +55,7 @@
     .recap p { margin:5px 0 0; color:#d1e2df; }
     .footer { text-align:center; font-size:12px; color:var(--muted); margin:17px 0 0; }
     @media(max-width:850px){ .layout{grid-template-columns:1fr;} .shell{padding:14px;} header{align-items:flex-start;} .badge{font-size:10px;} }
+    @media(max-width:600px){ .controls{flex-wrap:wrap;} .controls input[type=range]{order:3;flex-basis:100%;} }
   </style>
 </head>
 <body>
@@ -66,8 +68,8 @@
     <section class="card card-pad" aria-label="Synthetic match replay">
       <div class="matchhead"><div class="teams"><span class="red">Red FC</span> <span style="color:#718f91">vs</span> <span class="blue">Blue FC</span></div><div class="clock" id="clock">60:00</div></div>
       <div class="pitch-wrap"><canvas id="pitch" width="960" height="540" aria-label="Animated football pitch"></canvas><div class="overlay hidden" id="overlay"><div class="overline">Live insight · <span id="overlay-time"></span></div><strong id="overlay-text"></strong></div></div>
-      <div class="controls"><button class="primary" id="play">Play</button><button class="secondary" id="reset">Reset</button><input id="seek" type="range" min="0" max="100" value="0" aria-label="Replay position"></div>
-      <div class="caption">Blue attacks right. Passes form connected possessions; turnovers and restarts start new ones. Replay speed: one tagged event every 0.6 seconds.</div>
+      <div class="controls"><button class="primary" id="play">Play</button><button class="secondary" id="reset">Reset</button><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Match timeline"><select id="speed" aria-label="Playback speed"><option value="1" selected>1×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option></select></div>
+      <div class="caption">Blue attacks right. The clock advances continuously; 1× is match time. Ball and player motion between events is synthetic interpolation, not tracking data. Use 8× for a short demo.</div>
       <div class="card-pad" style="padding:16px 0 0"><h2 class="section-title">Event feed</h2><div class="feed" id="feed"><div class="caption">Press Play to begin the fictional match segment.</div></div></div>
     </section>
     <div class="right">
@@ -80,8 +82,60 @@
 </main>
 <script>
 const byId = id => document.getElementById(id);
-let events = [], insights = [], cursor = -1, timer = null, mode = 'casual', latest = null, activeInsight = null;
-let generation = 0;
+let events = [], insights = [], cursor = -1, frame = null, lastFrame = null;
+let mode = 'casual', latest = null, activeInsight = null, generation = 0;
+let playhead = 3600, endTime = 3900, finished = false;
+let playerTracks = [];
+const startTime = 3600;
+function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
+function timeLabel(t){const s=Math.floor(t);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+function flightDuration(e){
+  const length=Math.hypot((e.end_x-e.x)*1.05,(e.end_y-e.y)*.68);
+  return e.type==='shot'?clamp(length/30,.5,1.2):clamp(length/12,.9,2.4);
+}
+function ballPosition(){
+  const e=events[cursor];
+  if(!e)return null;
+  if((e.type==='pass'||e.type==='shot')&&e.end_x!==null){
+    const fraction=clamp((playhead-e.second)/flightDuration(e),0,1);
+    if(e.type==='shot'&&e.outcome==='off_target'&&fraction===1)return null;
+    return {x:e.x+(e.end_x-e.x)*fraction,y:e.y+(e.end_y-e.y)*fraction};
+  }
+  if(e.type==='pressure'||e.type==='tackle'){
+    for(let i=cursor-1;i>=0;i--){
+      const prior=events[i];
+      if(prior.possession_id!==e.possession_id)break;
+      if(prior.type==='pass'&&prior.outcome==='complete')return {x:prior.end_x,y:prior.end_y};
+    }
+  }
+  return {x:e.x,y:e.y};
+}
+function buildPlayerTracks(){
+  const map=new Map();
+  function anchor(team,name,t,x,y){
+    const key=team+'|'+name;
+    if(!map.has(key))map.set(key,{team,name,points:[]});
+    map.get(key).points.push({t,x,y});
+  }
+  for(const e of events){
+    if(e.type!=='possession_change')anchor(e.team,e.player,e.second,e.x,e.y);
+    if(e.type==='pass'&&e.outcome==='complete'&&e.recipient){
+      anchor(e.team,e.recipient,e.second+flightDuration(e),e.end_x,e.end_y);
+    }
+  }
+  playerTracks=[...map.values()];
+  for(const track of playerTracks)track.points.sort((a,b)=>a.t-b.t);
+}
+function trackPosition(points,t){
+  if(t<=points[0].t)return points[0];
+  for(let i=1;i<points.length;i++){
+    if(t<=points[i].t){
+      const a=points[i-1],b=points[i],f=(t-a.t)/(b.t-a.t||1);
+      return {x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f};
+    }
+  }
+  return points.at(-1);
+}
 
 function pitch() {
   const canvas = byId('pitch'), c = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
@@ -98,22 +152,34 @@ function pitch() {
     let x=26+(w-52)*e.x/100, y=25+(h-50)*e.y/100;
     if(e.type==='pass' && e.end_x!==null && e.end_x!==undefined){
       let x2=26+(w-52)*e.end_x/100, y2=25+(h-50)*e.end_y/100;
+      if(e===current){const f=clamp((playhead-e.second)/flightDuration(e),0,1);x2=x+(x2-x)*f;y2=y+(y2-y)*f;}
       c.strokeStyle=e.outcome==='incomplete'?'#ffffff80':e.team==='Red FC'?'#ff735fbd':'#6ac9ffbd'; c.lineWidth=3;
       c.setLineDash(e.outcome==='incomplete'?[8,6]:[]);
       c.beginPath();c.moveTo(x,y);c.lineTo(x2,y2);c.stroke();
       c.setLineDash([]);
       c.beginPath();c.arc(x2,y2,4,0,Math.PI*2);c.fillStyle=e.team==='Red FC'?'#ff735f':'#6ac9ff';c.fill();
     }
-    if(e.type==='pressure' || e.type==='tackle'){c.strokeStyle='#ff735faa';c.lineWidth=2;c.beginPath();c.arc(x,y,13,0,Math.PI*2);c.stroke();}
+    if(e.type==='pressure' || e.type==='tackle'){
+      const age=playhead-e.second;
+      const radius=e===current?12+4*Math.sin(age*7):13;
+      c.strokeStyle='#ff735faa';c.lineWidth=2;c.beginPath();c.arc(x,y,radius,0,Math.PI*2);c.stroke();
+    }
     else if(e.type!=='pass'){c.beginPath();c.arc(x,y,5,0,Math.PI*2);c.fillStyle=e.team==='Red FC'?'#ff735f':'#6ac9ff';c.fill();}
   }
-  if(current){
-    const ball=recent.filter(e=>e.type==='pass'&&e.outcome==='complete').at(-1);
-    const bx=current.type==='pass'&&current.outcome==='complete'?current.end_x:
-      current.type==='pressure'||current.type==='tackle'?(ball?ball.end_x:current.x):current.x;
-    const by=current.type==='pass'&&current.outcome==='complete'?current.end_y:
-      current.type==='pressure'||current.type==='tackle'?(ball?ball.end_y:current.y):current.y;
-    c.beginPath();c.arc(26+(w-52)*bx/100,25+(h-50)*by/100,9,0,Math.PI*2);
+  for(const track of playerTracks){
+    const p=trackPosition(track.points,playhead);
+    const x=26+(w-52)*p.x/100,y=25+(h-50)*p.y/100;
+    c.globalAlpha=.82;
+    c.beginPath();c.arc(x,y,7,0,Math.PI*2);
+    c.fillStyle=track.team==='Red FC'?'#ff735f':'#6ac9ff';c.fill();
+    c.strokeStyle='#0b2825';c.lineWidth=2;c.stroke();
+    c.font='12px sans-serif';c.fillStyle='#fff';
+    c.fillText(track.name.split(' ').at(-1),x+10,y-9);
+  }
+  c.globalAlpha=1;
+  const ball=ballPosition();
+  if(ball){
+    c.beginPath();c.arc(26+(w-52)*ball.x/100,25+(h-50)*ball.y/100,9,0,Math.PI*2);
     c.fillStyle='#fff';c.fill();c.strokeStyle='#0b2825';c.lineWidth=3;c.stroke();
   }
   c.fillStyle='#fff9';c.font='bold 17px sans-serif';c.fillText('RED ATTACKS ←',42,51);c.fillText('BLUE ATTACKS →',w-239,51);
@@ -154,25 +220,98 @@ async function trigger(insight){
     setText('overlay-time',insight.facts.window);
     setText('overlay-text',result.overlay);
     byId('overlay').classList.remove('hidden');
-  } catch(error){setText('story-title','Insight unavailable');setText('story',String(error));}
+  } catch(error){if(current===generation){setText('story-title','Insight unavailable');setText('story',String(error));}}
 }
-async function finish(){pause();try{const result=await post('/api/recap',{});setText('recap',result.text);setText('recap-source','Source: '+result.source);}catch(error){setText('recap','Recap unavailable: '+error);}}
-function step(){
-  if(cursor>=events.length-1){finish();return;}
-  cursor++;
-  const e=events[cursor];setText('clock',e.minute);byId('seek').value=Math.round(100*cursor/(events.length-1));
-  const feed=byId('feed');if(cursor===0)feed.textContent='';feed.prepend(eventLine(e));while(feed.children.length>8)feed.lastChild.remove();
-  for(const insight of insights){if(insight.trigger_event_id===e.id)trigger(insight);}
+async function finish(){
+  if(finished)return;
+  finished=true;pause();
+  const current=generation;
+  try{
+    const result=await post('/api/recap',{});
+    if(current!==generation)return;
+    setText('recap',result.text);setText('recap-source','Source: '+result.source);
+  }catch(error){if(current===generation)setText('recap','Recap unavailable: '+error);}
+}
+function updateDisplay(){
+  setText('clock',timeLabel(playhead));
+  byId('seek').value=Math.round(1000*(playhead-startTime)/(endTime-startTime));
   pitch();
-  if(cursor===events.length-1)finish();
 }
-function pause(){if(timer){clearInterval(timer);timer=null;}setText('play','Play');}
-function play(){if(timer){pause();return;}if(cursor>=events.length-1)reset();timer=setInterval(step,600);setText('play','Pause');step();}
-function reset(){pause();generation++;cursor=-1;latest=null;activeInsight=null;byId('overlay').classList.add('hidden');byId('seek').value=0;setText('clock','60:00');setText('story-title','Waiting for a meaningful shift');setText('story','The engine compares adjacent 100-second windows. It raises an insight when the event evidence crosses a threshold.');setText('source','Source: Python event engine');setText('stat1','—');setText('stat2','—');setText('stat3','—');setText('ids','Supporting event IDs will appear here.');setText('recap','The recap is generated when the replay finishes.');setText('recap-source','');byId('feed').textContent='';pitch();}
+function addToFeed(e){
+  const feed=byId('feed');
+  if(cursor===0)feed.textContent='';
+  feed.prepend(eventLine(e));
+  while(feed.children.length>8)feed.lastChild.remove();
+}
+function advanceEvents(){
+  while(cursor+1<events.length&&events[cursor+1].second<=playhead){
+    cursor++;
+    const e=events[cursor];
+    addToFeed(e);
+    const insight=insights.find(item=>item.trigger_event_id===e.id);
+    if(insight)trigger(insight);
+  }
+}
+function tick(now){
+  if(frame===null)return;
+  if(lastFrame!==null)playhead=Math.min(endTime,playhead+(now-lastFrame)/1000*Number(byId('speed').value));
+  lastFrame=now;
+  advanceEvents();
+  updateDisplay();
+  if(playhead>=endTime){finish();return;}
+  frame=requestAnimationFrame(tick);
+}
+function pause(){
+  if(frame!==null)cancelAnimationFrame(frame);
+  frame=null;lastFrame=null;setText('play','Play');
+}
+function play(){
+  if(frame!==null){pause();return;}
+  if(!events.length)return;
+  if(finished)reset();
+  setText('play','Pause');
+  frame=requestAnimationFrame(tick);
+}
+function clearInsight(){
+  generation++;latest=null;activeInsight=null;
+  byId('overlay').classList.add('hidden');
+  setText('story-title','Waiting for a meaningful shift');
+  setText('story','The engine compares adjacent 100-second windows. It raises an insight when the event evidence crosses a threshold.');
+  setText('source','Source: Python event engine');
+  setText('stat1','—');setText('stat2','—');setText('stat3','—');
+  setText('ids','Supporting event IDs will appear here.');
+}
+function reset(){
+  pause();playhead=startTime;cursor=-1;finished=false;clearInsight();
+  setText('recap','The recap is generated when the replay finishes.');
+  setText('recap-source','');
+  byId('feed').textContent='';
+  updateDisplay();
+}
+function seekTo(value){
+  pause();finished=false;clearInsight();
+  playhead=startTime+Number(value)/1000*(endTime-startTime);
+  cursor=-1;
+  while(cursor+1<events.length&&events[cursor+1].second<=playhead)cursor++;
+  const feed=byId('feed');feed.textContent='';
+  for(const e of events.slice(Math.max(0,cursor-7),cursor+1).reverse())feed.append(eventLine(e));
+  updateDisplay();
+}
 byId('play').onclick=play;byId('reset').onclick=reset;
 byId('casual').onclick=()=>setMode('casual');byId('analyst').onclick=()=>setMode('analyst');
-byId('seek').oninput=e=>{const target=Math.round(Number(e.target.value)*(events.length-1)/100);reset();while(cursor<target)step();};
-fetch('/api/match').then(r=>r.json()).then(data=>{events=data.events;insights=data.insights;pitch();if(!data.foundry_configured)setText('source','Source: Local fallback until Foundry is configured');}).catch(err=>setText('story',String(err)));
+byId('seek').oninput=e=>seekTo(e.target.value);
+byId('seek').onchange=()=>{
+  const seen=insights.filter(item=>item.trigger_second<=playhead).at(-1);
+  if(seen)trigger(seen);
+  if(playhead>=endTime)finish();
+};
+fetch('/api/match').then(r=>r.json()).then(data=>{
+  events=data.events;insights=data.insights;
+  endTime=events.at(-1).second+3;
+  buildPlayerTracks();
+  updateDisplay();
+  if(!data.foundry_configured)setText('source','Source: Local fallback until Foundry is configured');
+}).catch(err=>setText('story',String(err)));
 </script>
 </body>
 </html>

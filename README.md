@@ -33,6 +33,8 @@ The backend calls `POST {endpoint}/openai/v1/chat/completions` using the deploym
 4. `app.py` asks Foundry to express each evidence packet as an overlay plus casual and analyst explanations.
 5. The browser renders a timed pitch replay, evidence panel, audience modes, and a segment recap.
 
+The replay clock advances continuously. At the default **1×** speed, one wall-clock second equals one match second; **8×** completes the five-minute passage in about 37 seconds for a demo. The ball moves along pass and shot paths between tagged timestamps, and player dots interpolate between synthetic event positions. These visual positions are illustrative, not video-derived tracking data.
+
 All clubs, players, events, and coordinates are fictional. This project uses no Premier League match data or match footage.
 
 ## Verify

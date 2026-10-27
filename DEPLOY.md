@@ -8,7 +8,7 @@ python3 -m unittest discover -s tests -v
 python3 app.py
 ```
 
-Open <http://localhost:8000>, press **Play**, and confirm that two insights and a recap appear. The first run is labeled **Local fallback** until Foundry is configured.
+Open <http://localhost:8000>, press **Play**, and confirm that two overlays and a recap appear over the 70-second illustrated feed. At the default 4× speed this takes about 18 seconds. The first run is labeled **Local editorial fallback** until Foundry is configured.
 
 ## 2. Connect the Foundry deployment
 
@@ -21,7 +21,7 @@ export AZURE_OPENAI_DEPLOYMENT='gpt-5-mini'
 python3 app.py
 ```
 
-Use the exact endpoint shown in Foundry if it differs. Do not paste the key into chat, GitHub, screenshots, or the demo video. Run the replay again. The insight source should say **Microsoft Foundry · gpt-5-mini**. If it says **Local fallback**, the app shows a short error next to the source label; share that error text without any secrets.
+Use the exact endpoint shown in Foundry if it differs. Do not paste the key into chat, GitHub, screenshots, or the demo video. Run the replay again. The overlay source should say **Microsoft Foundry · gpt-5-mini**. If it says **Local editorial fallback**, check the server log and connection settings without sharing secrets.
 
 ## 3. Publish the code
 

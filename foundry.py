@@ -1,4 +1,4 @@
-"""Minimal Azure OpenAI Foundry integration with evidence validation."""
+"""Foundry editorial agent: grounded wording, audience language, and overlay focus."""
 
 from __future__ import annotations
 
@@ -7,135 +7,104 @@ import os
 import urllib.error
 import urllib.request
 
-from engine import Insight
 
-
-SYSTEM = """You are a football studio insights editor. Facts describe a wholly synthetic match.
-Return ONLY one JSON object with keys overlay, casual, analyst, evidence_ids.
-Overlay: maximum 18 words. Casual: maximum 35 words. Analyst: maximum 60 words.
-Use only supplied facts. Evidence IDs must be chosen from the supplied IDs.
-Distinguish observation from interpretation. Use cautious language for tactical inference.
-Do not claim that one event caused another, predict a goal, invent scores or players,
-or describe video footage. Never use web search. No markdown."""
+SYSTEM = """You are the editorial agent for a synthetic football match overlay.
+Input is a verified candidate from a deterministic event engine.
+Return only a JSON object with: overlay_en, overlay_es, casual_en, casual_es,
+analyst_en, analyst_es, why, focus_event_id, evidence_ids, visual_kind.
+visual_kind must be pressure_zone or pass_lane. Pick focus_event_id from the
+allowed evidence_ids. evidence_ids must be a nonempty subset of allowed IDs.
+Overlay text is at most 14 words in each language; casual at most 35; analyst
+at most 55. Say what was observed, then cautious tactical meaning. No score,
+goals, predictions, invented players, live footage claims, or facts outside
+the packet. The Spanish should express the same facts, not introduce others."""
 
 
 def configured() -> bool:
     return bool(os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_OPENAI_API_KEY"))
 
 
-def _request(messages: list[dict]) -> dict:
+def _request(candidate: dict) -> dict:
     endpoint = os.environ["AZURE_OPENAI_ENDPOINT"].rstrip("/")
     if endpoint.endswith("/openai/v1"):
         endpoint = endpoint[:-len("/openai/v1")]
-    url = endpoint + "/openai/v1/chat/completions"
-    payload = {
-        "model": os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-5-mini"),
-        "messages": messages,
-        "reasoning_effort": "minimal",
-        "max_completion_tokens": 650,
-    }
+    payload = {"model": os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-5-mini"),
+               "messages": [{"role": "system", "content": SYSTEM},
+                            {"role": "user", "content": json.dumps(candidate)}],
+               "reasoning_effort": "minimal", "max_completion_tokens": 850}
     req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
+        endpoint + "/openai/v1/chat/completions",
+        data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json",
                  "api-key": os.environ["AZURE_OPENAI_API_KEY"]},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=20) as response:
-            return json.load(response)
-    except urllib.error.HTTPError as exc:
-        detail = exc.read(500).decode("utf-8", errors="replace")
-        raise RuntimeError(f"Foundry HTTP {exc.code}: {detail}") from exc
+        method="POST")
+    with urllib.request.urlopen(req, timeout=18) as response:
+        return json.load(response)
 
 
-def _parse_json(content: str) -> dict:
-    content = content.strip()
-    if content.startswith("```"):
-        content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-    return json.loads(content)
+def validate(candidate: dict, output: dict) -> dict:
+    if not isinstance(output, dict):
+        raise ValueError("Expected an object")
+    allowed = set(candidate["evidence_ids"])
+    ids = output.get("evidence_ids")
+    if not isinstance(ids, list) or not ids or not set(ids) <= allowed:
+        raise ValueError("Ungrounded evidence IDs")
+    if output.get("focus_event_id") not in allowed:
+        raise ValueError("Focus event is not evidence")
+    if output.get("visual_kind") not in ("pressure_zone", "pass_lane"):
+        raise ValueError("Unsupported visual kind")
+    for field, limit in (("overlay_en", 14), ("overlay_es", 14),
+                         ("casual_en", 35), ("casual_es", 35),
+                         ("analyst_en", 55), ("analyst_es", 55),
+                         ("why", 45)):
+        value = output.get(field)
+        if not isinstance(value, str) or not value.strip() or len(value.split()) > limit:
+            raise ValueError(f"Invalid {field}")
+    return {key: output[key] for key in (
+        "overlay_en", "overlay_es", "casual_en", "casual_es",
+        "analyst_en", "analyst_es", "why", "focus_event_id",
+        "evidence_ids", "visual_kind")}
 
 
-def narrate(insight: Insight) -> dict:
-    if not configured():
-        return fallback(insight, "Foundry credentials are not configured")
-    try:
-        response = _request([
-            {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": json.dumps({
-                "kind": insight.kind,
-                "facts": insight.facts,
-                "allowed_evidence_ids": insight.evidence_ids,
-            })},
-        ])
-        raw = response["choices"][0]["message"]["content"]
-        parsed = _parse_json(raw)
-        allowed = set(insight.evidence_ids)
-        ids = parsed.get("evidence_ids")
-        if (not isinstance(ids, list) or not ids or
-                not all(isinstance(item, str) for item in ids) or
-                not set(ids) <= allowed):
-            raise ValueError("Model returned missing or unknown evidence IDs")
-        for key, limit in (("overlay", 18), ("casual", 35), ("analyst", 60)):
-            if not isinstance(parsed.get(key), str) or not parsed[key].strip():
-                raise ValueError(f"Missing {key}")
-            if len(parsed[key].split()) > limit:
-                raise ValueError(f"{key} exceeds word limit")
-        return {"source": "Microsoft Foundry · gpt-5-mini",
-                "overlay": parsed["overlay"], "casual": parsed["casual"],
-                "analyst": parsed["analyst"], "evidence_ids": ids,
-                "usage": response.get("usage", {})}
-    except (ValueError, KeyError, IndexError, TypeError, AttributeError,
-            TimeoutError, OSError, RuntimeError) as exc:
-        return fallback(insight, str(exc))
-
-
-def fallback(insight: Insight, reason: str) -> dict:
-    facts = insight.facts
-    if insight.kind == "pressure_surge":
-        overlay = "Red's press is disrupting Blue's build-up."
-        casual = "Red is pressing near Blue's goal and winning the ball higher up the pitch."
-        analyst = (f"Red recorded {facts['red_high_recoveries']} high recoveries and "
-                   f"{facts['red_attacking_third_pressures']} attacking-third pressures "
-                   f"from {facts['window']}, versus {facts['previous_high_recoveries']} "
-                   f"high recoveries and {facts['previous_pressures']} pressure before. "
-                   f"Blue had {facts['blue_failed_defensive_exits']} failed exits. "
-                   "This pattern suggests a more disruptive press.")
+def fallback(candidate: dict, reason: str = "") -> dict:
+    if candidate["kind"] == "pressure_turn":
+        data = {
+            "overlay_en": "Red's press traps Blue near its own goal",
+            "overlay_es": "La presión roja encierra al Azul cerca de su portería",
+            "casual_en": "Red closes down Blue near its goal. Blue's attempted escape is intercepted, giving Red the ball in a dangerous area.",
+            "casual_es": "Rojo presiona al Azul cerca de su portería. Intercepta su intento de salir y recupera el balón en una zona peligrosa.",
+            "analyst_en": "Two Red pressures in Blue's defensive third followed a baseline with none. Blue then lost one attempted exit and Red recovered the ball high. This sequence suggests the press disrupted Blue's build-up.",
+            "analyst_es": "Hubo dos presiones rojas en el tercio defensivo azul, frente a ninguna antes. Azul falló una salida y Rojo recuperó arriba. La secuencia sugiere que la presión dificultó la construcción.",
+            "why": "Two close-range pressure tags, an intercepted pass, and a high recovery support the overlay.",
+            "visual_kind": "pressure_zone",
+        }
     else:
-        overlay = "Blue FC is finding a route through the press."
-        casual = "Blue FC is moving the ball forward again after a difficult spell."
-        analyst = (f"Blue completed {facts['blue_completed_progressive_passes']} progressive "
-                   f"passes from {facts['window']} while Red recorded "
-                   f"{facts['red_high_recoveries']} high recoveries, down from "
-                   f"{facts['previous_high_recoveries']} in the previous window. "
-                   "The sequence suggests Blue may have found a route through the press.")
-    return {"source": "Local fallback · Foundry unavailable", "overlay": overlay,
-            "casual": casual, "analyst": analyst,
-            "evidence_ids": list(insight.evidence_ids), "reason": reason}
+        data = {
+            "overlay_en": "Blue plays through the press",
+            "overlay_es": "Azul supera la presión con pases",
+            "casual_en": "Blue finds two forward passes after restarting. The ball is moving away from its own goal again.",
+            "casual_es": "Azul completa dos pases hacia adelante tras reanudar. El balón vuelve a alejarse de su portería.",
+            "analyst_en": "Blue completes two passes advancing at least 12 metres after the restart, while Red has no further high recovery in this window. This suggests Blue found a route through the press.",
+            "analyst_es": "Azul completa dos pases de al menos 12 metros hacia adelante tras reanudar, sin otra recuperación alta de Rojo en esta ventana. Esto sugiere una salida ante la presión.",
+            "why": "Two completed forward passes, each advancing at least 12 metres, support the overlay.",
+            "visual_kind": "pass_lane",
+        }
+    return {**data, "focus_event_id": candidate["focus_event_id"],
+            "evidence_ids": candidate["evidence_ids"],
+            "source": "Local editorial fallback", "reason": reason}
 
 
-def recap(insights: list[dict]) -> dict:
-    # A fixed recap is available even when cloud inference is unavailable.
-    press = insights[0].facts if insights else {}
-    response = insights[1].facts if len(insights) > 1 else {}
-    local = (f"Red FC's pressure rose in {press.get('window', 'the middle passage')}, "
-             f"with {press.get('red_high_recoveries', 0)} high recoveries and "
-             f"{press.get('red_attacking_third_pressures', 0)} attacking-third pressures. "
-             f"Blue FC then completed {response.get('blue_completed_progressive_passes', 0)} "
-             "progressive passes while Red's high recoveries fell to zero. "
-             "The synthetic sequence suggests a press and a possible response.")
+def edit(candidate: dict) -> dict:
     if not configured():
-        return {"text": local, "source": "Local fallback · Foundry unavailable"}
+        return fallback(candidate, "Foundry credentials unavailable")
     try:
-        response = _request([
-            {"role": "system", "content": "Write a 65-word maximum recap of a synthetic football segment. "
-             "Use only the JSON facts. Describe observations and cautious tactical interpretations. "
-             "Do not invent score, result, players, or causality."},
-            {"role": "user", "content": json.dumps([i.facts for i in insights])},
-        ])
-        text = response["choices"][0]["message"]["content"].strip()
-        if not text or len(text.split()) > 65:
-            raise ValueError("Invalid recap length")
-        return {"text": text, "source": "Microsoft Foundry · gpt-5-mini"}
-    except (ValueError, KeyError, IndexError, TimeoutError, OSError, RuntimeError):
-        return {"text": local, "source": "Local fallback · Foundry unavailable"}
+        response = _request(candidate)
+        raw = response["choices"][0]["message"]["content"].strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+        output = validate(candidate, json.loads(raw))
+        return {**output, "source": "Microsoft Foundry · gpt-5-mini",
+                "usage": response.get("usage", {})}
+    except (ValueError, KeyError, IndexError, TypeError, OSError,
+            TimeoutError, urllib.error.URLError) as error:
+        return fallback(candidate, str(error)[:180])

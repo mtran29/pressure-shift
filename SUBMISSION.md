@@ -1,35 +1,34 @@
-# Innovation Studio submission draft
+# Innovation Studio draft
 
-## Project name
-Pressure Shift: Explainable Live Match Intelligence
+## Name
 
-## Elevator pitch
-Pressure Shift turns a synthetic football event stream into timely, explainable studio overlays. A transparent Python engine detects when a high press changes the opponent's buildup and when that tactical story shifts again. A procedural 11-v-11 tracking layer makes the event replay readable in the context of team shape. Microsoft Foundry's gpt-5-mini deployment expresses the verified facts as concise overlays, casual-fan explanations, analyst context, and a segment recap. Every insight links to supporting event IDs, so producers can inspect the evidence before putting a story on screen. A browser replay shows the full ingest, interpret, explain, render, and personalize pipeline without using real match footage or data.
+Pressure Shift: Live, Explainable Match Overlays
 
-## What to show in the under-two-minute video
+## Pitch
 
-1. **0–15s:** Explain the problem: stats alone do not explain a tactical shift. Show the fictional pitch replay.
-2. **15–40s:** Red's press rises. Point to the timed overlay and evidence panel: two high recoveries, six pressures, two failed exits.
-3. **40–60s:** Switch Casual Fan ↔ Analyst to show different wording from the same verified fact packet.
-4. **60–80s:** Blue starts passing through. Show the second overlay and that the earlier press story updates.
-5. **80–100s:** Show the recap and briefly the Foundry deployment / model monitoring screen.
-6. **100–110s:** Show public repo and simple architecture diagram; state that all data are synthetic.
+Pressure Shift turns a synthetic 11-v-11 football feed into timely on-screen explanations. A Python event engine detects a high press and the opponent's response from verified evidence. Microsoft Foundry's `gpt-5-mini` acts as an editorial agent, converting those evidence packets into concise overlays, fan and analyst explanations, English and Spanish versions, and a visual focus. The app renders the result directly over the live-style synthetic feed. Viewers see why the game changed without opening a statistics panel or using copyrighted match footage.
 
-Record the app functioning on your computer. Upload the video to a permitted public service and put its URL in Innovation Studio. Do not include copyrighted match footage or music.
+## Video plan, under two minutes
+
+1. **0–12s:** Show the feed and say it is a fictional 10 Hz match, with no real footage.
+2. **12–38s:** Press Play at 4×. Point to Red's closing run and the pressure cue, then the lower-third overlay appearing after the high recovery.
+3. **38–55s:** Switch Fan ↔ Analyst and English ↔ Español while the same insight stays on screen.
+4. **55–75s:** Show Blue's forward response and the second overlay. Point to the highlighted pass lane.
+5. **75–95s:** Show the signal rail, evidence IDs, and recap.
+6. **95–110s:** Show the Foundry model deployment and the code path `verified facts → editorial agent → validated overlay`. Explain what Foundry generated, and show the public repository.
 
 ## Architecture
 
-`Synthetic event stream + 11-v-11 tracking → Python window metrics → evidence packet → Microsoft Foundry gpt-5-mini → checked narrative → timed overlay + audience modes + recap`
+`Generated 10 Hz tracking + fictional events → deterministic evidence packet → Foundry editorial agent → validated multilingual overlay + visual focus → synchronized match feed + recap`
 
-## Judging access
+## Honest scope
 
-The app can be run from the public repository with `python3 app.py` and no dependencies. With Foundry credentials configured on the host, the same app shows live Foundry-generated wording; otherwise it clearly labels local fallback copy. For a public hosted demo, configure the environment variables on the hosting platform. Never publish an API key.
+The synthetic trajectories are constrained by speed, acceleration, team shape, and broad public movement priors, but they are not a validated football simulation. This prototype uses one Foundry model call per candidate insight. It does not yet demonstrate Foundry evaluations, monitoring, or a multi-agent workflow, so do not describe it as a mature Foundry platform solution.
 
 ## Submission checklist
 
 - [ ] Public GitHub repository URL
-- [ ] Public working demo or downloadable test build and instructions
-- [ ] Public video URL, under two minutes, on YouTube / Vimeo / Facebook Video / Youku
-- [ ] Pitch includes Microsoft Foundry and the problem solved
-- [ ] Confirm all data and visuals are fictional
-- [ ] Verify submitted links in a private browser window
+- [ ] Demo video URL, under two minutes, hosted on a permitted public service
+- [ ] Confirm the Foundry deployment is configured for the recorded demo
+- [ ] Verify the app starts from a fresh clone with `python3 app.py`
+- [ ] Confirm no API key, real match tracking, or copyrighted footage is published

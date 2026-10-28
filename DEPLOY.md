@@ -12,16 +12,17 @@ Open <http://localhost:8000>, press **Play**, and confirm that two overlays and 
 
 ## 2. Connect the Foundry deployment
 
-Open the `gpt-5-mini` deployment in your `pressure-shift` Foundry project and select **Continue in code**. Use its Azure OpenAI endpoint and API key. In a new Terminal window, set:
+Open the `gpt-5-mini` deployment in your `pressure-shift` Foundry project and select **Continue in code**. Its displayed Responses URL ends in `/openai/v1/responses`; this app uses the same resource's base URL to call Chat Completions. In a new Terminal window, set:
 
-```bash
-export AZURE_OPENAI_ENDPOINT='https://pressure-shift-foundry.openai.azure.com'
-export AZURE_OPENAI_API_KEY='PASTE_YOUR_KEY_HERE'
+```zsh
+export AZURE_OPENAI_ENDPOINT='https://pressure-shift-foundry.services.ai.azure.com'
 export AZURE_OPENAI_DEPLOYMENT='gpt-5-mini'
+read -s 'AZURE_OPENAI_API_KEY?Paste Foundry API key: '
+export AZURE_OPENAI_API_KEY
 python3 app.py
 ```
 
-Use the exact endpoint shown in Foundry if it differs. Do not paste the key into chat, GitHub, screenshots, or the demo video. Run the replay again. The overlay source should say **Microsoft Foundry · gpt-5-mini**. If it says **Local editorial fallback**, check the server log and connection settings without sharing secrets.
+Do not paste the key into chat, GitHub, screenshots, or the demo video. Run the replay again. The overlay source should say **Microsoft Foundry · gpt-5-mini**. If it says **Local editorial fallback**, check the API's `reason` field without sharing secrets.
 
 ## 3. Publish the code
 

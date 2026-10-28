@@ -25,6 +25,8 @@ python3 app.py
 
 Never commit the key. `foundry.py` calls the model when a candidate insight is emitted. The browser first shows a grounded local preview, then updates it with the Foundry response if available. A slow model therefore does not hold the live overlay. The backend validates evidence IDs, focus ID, visual kind, and length before displaying model output. The key stays server-side.
 
+If a Python.org installation on macOS reports `CERTIFICATE_VERIFY_FAILED`, the app uses the system CA bundle at `/etc/ssl/cert.pem` when Python has no certificates configured. Restart `app.py` after updating the code because editorial responses are cached for the running process. TLS verification remains enabled.
+
 Foundry's role is **editorial**, not metric calculation: it decides concise wording for two audiences and two languages, gives a reason for the overlay, and selects a supported event and visual focus. The Python engine determines physical events and counts. This is a useful Foundry integration, but a serious **Best Use of Microsoft Foundry** entry would also need Foundry evaluations, monitoring evidence, and a more sophisticated editorial workflow. Do not claim that the current prototype alone demonstrates those capabilities.
 
 ## Rebuilt data pipeline

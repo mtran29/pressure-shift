@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import os
+import ssl
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 
 SYSTEM = """You are the editorial agent for a synthetic football match overlay.
@@ -24,6 +26,16 @@ def configured() -> bool:
     return bool(os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_OPENAI_API_KEY"))
 
 
+def _tls_context() -> ssl.SSLContext:
+    """Use macOS's CA bundle when a Python.org install has none configured."""
+    context = ssl.create_default_context()
+    if not context.get_ca_certs():
+        system_bundle = Path("/etc/ssl/cert.pem")
+        if system_bundle.is_file():
+            context = ssl.create_default_context(cafile=str(system_bundle))
+    return context
+
+
 def _request(candidate: dict) -> dict:
     endpoint = os.environ["AZURE_OPENAI_ENDPOINT"].rstrip("/")
     if endpoint.endswith("/openai/v1"):
@@ -38,7 +50,7 @@ def _request(candidate: dict) -> dict:
         headers={"Content-Type": "application/json",
                  "api-key": os.environ["AZURE_OPENAI_API_KEY"]},
         method="POST")
-    with urllib.request.urlopen(req, timeout=18) as response:
+    with urllib.request.urlopen(req, timeout=18, context=_tls_context()) as response:
         return json.load(response)
 
 

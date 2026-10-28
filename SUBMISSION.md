@@ -1,5 +1,7 @@
 # Innovation Studio draft
 
+Public code repository: https://github.com/mtran29/pressure-shift
+
 ## Name
 
 Pressure Shift: Live, Explainable Match Overlays
@@ -27,7 +29,7 @@ The synthetic trajectories are constrained by speed, acceleration, team shape, a
 
 ## Submission checklist
 
-- [ ] Public GitHub repository URL
+- [x] Public GitHub repository URL: https://github.com/mtran29/pressure-shift
 - [ ] Demo video URL, under two minutes, hosted on a permitted public service
 - [ ] Confirm the Foundry deployment is configured for the recorded demo
 - [ ] Verify the app starts from a fresh clone with `python3 app.py`

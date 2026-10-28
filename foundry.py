@@ -8,6 +8,7 @@ import ssl
 import urllib.error
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 SYSTEM = """You are the editorial agent for a synthetic football match overlay.
@@ -36,22 +37,46 @@ def _tls_context() -> ssl.SSLContext:
     return context
 
 
+def _chat_url(endpoint: str) -> str:
+    endpoint = endpoint.strip().rstrip("/")
+    parts = urlsplit(endpoint)
+    if parts.scheme != "https" or not parts.netloc or parts.query or parts.fragment:
+        raise ValueError("AZURE_OPENAI_ENDPOINT must be an HTTPS resource endpoint without a query string")
+    if "/api/projects/" in parts.path:
+        raise ValueError("AZURE_OPENAI_ENDPOINT is a Foundry project URL; use the model resource endpoint")
+    if parts.path.endswith("/openai/v1/chat/completions"):
+        return endpoint
+    if parts.path.endswith("/openai/v1"):
+        return endpoint + "/chat/completions"
+    if parts.path:
+        raise ValueError("AZURE_OPENAI_ENDPOINT must be the resource base URL or its /openai/v1 URL")
+    return endpoint + "/openai/v1/chat/completions"
+
+
 def _request(candidate: dict) -> dict:
-    endpoint = os.environ["AZURE_OPENAI_ENDPOINT"].rstrip("/")
-    if endpoint.endswith("/openai/v1"):
-        endpoint = endpoint[:-len("/openai/v1")]
+    url = _chat_url(os.environ["AZURE_OPENAI_ENDPOINT"])
     payload = {"model": os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-5-mini"),
                "messages": [{"role": "system", "content": SYSTEM},
                             {"role": "user", "content": json.dumps(candidate)}],
                "reasoning_effort": "minimal", "max_completion_tokens": 850}
     req = urllib.request.Request(
-        endpoint + "/openai/v1/chat/completions",
+        url,
         data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json",
                  "api-key": os.environ["AZURE_OPENAI_API_KEY"]},
         method="POST")
-    with urllib.request.urlopen(req, timeout=18, context=_tls_context()) as response:
-        return json.load(response)
+    try:
+        with urllib.request.urlopen(req, timeout=18, context=_tls_context()) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as error:
+        detail = error.read(4096).decode("utf-8", errors="replace")
+        try:
+            body = json.loads(detail)
+            azure_error = body.get("error", body)
+            detail = str(azure_error.get("message") or azure_error.get("code") or "")
+        except (ValueError, AttributeError):
+            detail = detail[:180]
+        raise ValueError(f"Azure HTTP {error.code}: {detail[:180]}") from error
 
 
 def validate(candidate: dict, output: dict) -> dict:

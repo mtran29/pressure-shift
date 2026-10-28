@@ -27,6 +27,8 @@ Never commit the key. `foundry.py` calls the model when a candidate insight is e
 
 If a Python.org installation on macOS reports `CERTIFICATE_VERIFY_FAILED`, the app uses the system CA bundle at `/etc/ssl/cert.pem` when Python has no certificates configured. Restart `app.py` after updating the code because editorial responses are cached for the running process. TLS verification remains enabled.
 
+For an Azure 404, check that `AZURE_OPENAI_ENDPOINT` is the model resource URL (for example `https://YOUR-RESOURCE.openai.azure.com`), not the Foundry project URL ending in `/api/projects/...`. `AZURE_OPENAI_DEPLOYMENT` must be the exact deployed name shown under **Build → Models**. The app accepts either the resource base URL or a URL ending in `/openai/v1/`; it constructs the chat completions route and includes Azure's error detail in the local fallback reason.
+
 Foundry's role is **editorial**, not metric calculation: it decides concise wording for two audiences and two languages, gives a reason for the overlay, and selects a supported event and visual focus. The Python engine determines physical events and counts. This is a useful Foundry integration, but a serious **Best Use of Microsoft Foundry** entry would also need Foundry evaluations, monitoring evidence, and a more sophisticated editorial workflow. Do not claim that the current prototype alone demonstrates those capabilities.
 
 ## Rebuilt data pipeline
